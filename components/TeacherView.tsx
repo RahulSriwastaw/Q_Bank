@@ -738,9 +738,24 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
       </header>
 
 
-      {/* 5. CINEMATIC CONTENT CANVAS */}
-      <main className="flex-1 relative flex items-center justify-center z-10 px-20">
-        <div className="w-full max-w-7xl animate-in fade-in zoom-in-95 duration-700">
+      {/* 5. CINEMATIC CONTENT CANVAS - DRAGGABLE */}
+      <main className="flex-1 relative flex items-center justify-center z-10 px-20 overflow-hidden">
+        <div
+          className={`animate-in fade-in zoom-in-95 duration-700 transition-transform ${tool === 'cursor' ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          style={{
+            transform: `translate(${contentPos.x}px, ${contentPos.y}px) scale(${scale})`,
+            width: `${containerSize.w}px`,
+            maxWidth: 'none'
+          }}
+          onMouseDown={startContentDrag}
+        >
+          {/* DRAG HANDLE */}
+          {tool === 'cursor' && (
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/10 text-[9px] font-black text-white/60 uppercase tracking-widest cursor-grab active:cursor-grabbing select-none">
+              <Move size={14} className="text-primary" />
+              <span>Drag to Move Question</span>
+            </div>
+          )}
 
           {showSol ? (
             <div className="glass p-16 rounded-[48px] animate-in slide-in-from-bottom-8 duration-500 border border-white/10">
@@ -802,6 +817,110 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
           )}
         </div>
       </main>
+
+      {/* FLOATING CONTENT CONTROLS */}
+      <div className="fixed top-24 left-6 z-[45] flex flex-col gap-2">
+        {/* Move/Drag Toggle Info */}
+        <div className="glass px-4 py-3 rounded-2xl border border-white/10 flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            <Move size={14} className="text-primary" />
+            <span>Position Mode</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setContentPos({ x: 0, y: 0 })}
+              className="flex-1 h-8 bg-white/5 hover:bg-white/10 text-slate-400 text-[9px] font-bold uppercase rounded-lg transition-all flex items-center justify-center gap-1"
+            >
+              <RotateCcw size={12} /> Reset
+            </button>
+          </div>
+          <div className="text-[8px] text-slate-600 text-center">
+            X: {Math.round(contentPos.x)} • Y: {Math.round(contentPos.y)}
+          </div>
+        </div>
+
+        {/* Zoom Controls */}
+        <div className="glass px-4 py-3 rounded-2xl border border-white/10 flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            <ZoomIn size={14} className="text-primary" />
+            <span>Scale</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
+              className="w-8 h-8 bg-white/5 hover:bg-white/10 text-slate-400 rounded-lg transition-all flex items-center justify-center"
+            >
+              <ZoomOut size={14} />
+            </button>
+            <div className="flex-1 h-8 bg-white/5 rounded-lg flex items-center justify-center text-xs font-bold text-white">
+              {Math.round(scale * 100)}%
+            </div>
+            <button
+              onClick={() => setScale(s => Math.min(2, s + 0.1))}
+              className="w-8 h-8 bg-white/5 hover:bg-white/10 text-slate-400 rounded-lg transition-all flex items-center justify-center"
+            >
+              <ZoomIn size={14} />
+            </button>
+          </div>
+          <button
+            onClick={() => setScale(1)}
+            className="h-7 bg-white/5 hover:bg-white/10 text-slate-400 text-[9px] font-bold uppercase rounded-lg transition-all"
+          >
+            Reset to 100%
+          </button>
+        </div>
+
+        {/* Container Width */}
+        <div className="glass px-4 py-3 rounded-2xl border border-white/10 flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            <Maximize size={14} className="text-primary" />
+            <span>Width</span>
+          </div>
+          <input
+            type="range"
+            min="400"
+            max="1600"
+            value={containerSize.w}
+            onChange={(e) => setContainerSize({ w: parseInt(e.target.value) })}
+            className="w-full accent-primary"
+          />
+          <div className="text-[8px] text-slate-600 text-center">
+            {containerSize.w}px
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="glass px-3 py-2 rounded-2xl border border-white/10 flex flex-col gap-1.5">
+          <button
+            onClick={() => setShowGrid(true)}
+            className="h-9 px-3 bg-white/5 hover:bg-white/10 text-slate-400 text-[9px] font-bold uppercase rounded-lg transition-all flex items-center gap-2"
+          >
+            <Grid size={14} /> Slide Grid
+          </button>
+          <button
+            onClick={toggleBookmark}
+            className={`h-9 px-3 text-[9px] font-bold uppercase rounded-lg transition-all flex items-center gap-2 ${bookmarks.has(currentIdx) ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 hover:bg-white/10 text-slate-400'}`}
+          >
+            <Bookmark size={14} className={bookmarks.has(currentIdx) ? 'fill-amber-400' : ''} /> {bookmarks.has(currentIdx) ? 'Bookmarked' : 'Bookmark'}
+          </button>
+          <button
+            onClick={async () => {
+              const newAnnot = { ...annotations, [currentIdx]: currentPaths };
+              setAnnotations(newAnnot);
+              await saveProgress(newAnnot);
+            }}
+            className="h-9 px-3 bg-primary/20 hover:bg-primary/30 text-primary text-[9px] font-bold uppercase rounded-lg transition-all flex items-center gap-2"
+          >
+            <Save size={14} /> Save Annotations
+          </button>
+          <button
+            onClick={downloadClassNotes}
+            className="h-9 px-3 bg-white/5 hover:bg-white/10 text-slate-400 text-[9px] font-bold uppercase rounded-lg transition-all flex items-center gap-2"
+          >
+            <Download size={14} /> Download Slide
+          </button>
+        </div>
+      </div>
 
       {/* 6. REFINED CONTROL DOCK */}
       <footer className="h-28 flex items-center justify-center z-50">
