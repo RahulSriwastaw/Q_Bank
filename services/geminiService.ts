@@ -57,8 +57,12 @@ export const geminiService = {
     // Construct temporal context
     const dateContext = date ? `STRICTLY for the date: ${date}. Only include events that occurred on this specific day.` : `Focus on late 2024 to early 2025 events.`;
 
+    // Get current year for metadata
+    const currentYear = new Date().getFullYear().toString();
+    const todayDate = new Date().toISOString().split('T')[0];
+
     const prompt = `
-      Generate ${count} educational questions for an Indian competitive exam (UPSC, SSC, Railway, State PSC).
+      Generate ${count} educational questions for an Indian competitive exam (UPSC, SSC, Railway, State PSC, Banking).
       Subject: ${subject}
       Category/Topic: ${topic}
       Temporal Focus: ${dateContext}
@@ -70,6 +74,12 @@ export const geminiService = {
       - Ensure high accuracy in facts, appointments, and data.
       - Every question must be relevant for a candidate appearing in exams in 2025.
       
+      IMPORTANT: Fill ALL metadata fields accurately:
+      - exam: Target exam like "UPSC", "SSC CGL", "RRB NTPC", "IBPS PO", "BPSC", etc.
+      - year: Year of question relevance (${currentYear})
+      - section: Which section this question fits (e.g., "General Awareness", "Quantitative Aptitude", "Reasoning", "General Science")
+      - chapter: Specific chapter/topic name
+      
       Response Format (JSON):
       {
         "question_eng": "...", "question_hin": "...",
@@ -80,8 +90,10 @@ export const geminiService = {
         "option5_eng": "None of the above / More than one of the above", "option5_hin": "उपर्युक्त में से कोई नहीं / उपर्युक्त में से एक से अधिक",
         "answer": "1", // Valid values: 1, 2, 3, 4, 5
         "solution_eng": "...", "solution_hin": "...",
-        "exam": "UPSC/SSC/BPSC",
-        "year": "2024/2025"
+        "exam": "SSC CGL",
+        "year": "${currentYear}",
+        "section": "General Awareness",
+        "chapter": "Indian Economy"
       }
     `;
 
@@ -113,7 +125,9 @@ export const geminiService = {
                 solution_eng: { type: Type.STRING },
                 solution_hin: { type: Type.STRING },
                 exam: { type: Type.STRING },
-                year: { type: Type.STRING }
+                year: { type: Type.STRING },
+                section: { type: Type.STRING },
+                chapter: { type: Type.STRING }
               },
               required: [
                 "question_eng", "question_hin",
@@ -135,15 +149,38 @@ export const geminiService = {
       return rawQuestions.map((q: any) => ({
         ...q,
         id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        question_unique_id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         subject,
-        // If it's a daily recap, the chapter reflects the date
-        chapter: date && topic.includes("Daily") ? `Daily News: ${date}` : cleanTopic,
+        // Use AI-generated chapter or fallback to topic
+        chapter: q.chapter || (date && topic.includes("Daily") ? `Daily News: ${date}` : cleanTopic),
+        // Use AI-generated section or derive from subject
+        section: q.section || subject,
+        // Topic from generation params
+        topic: cleanTopic,
         type: 'MCQ',
         difficulty,
         language: language || 'Bilingual',
         createdDate: new Date().toISOString(),
-        date: date || undefined,
-        tags: [subject, cleanTopic, date || '', q.exam, "AI-Generated"].filter(Boolean)
+        // Date from params or today
+        date: date || todayDate,
+        // Year from AI or current
+        year: q.year || currentYear,
+        // Exam from AI or generic
+        exam: q.exam || 'Competitive Exams',
+        // Collection for grouping
+        collection: `AI Generated - ${subject}`,
+        // Previous of for source tracking
+        previous_of: `AI Generated on ${todayDate}`,
+        // Tags with all relevant metadata
+        tags: [
+          subject,
+          cleanTopic,
+          q.exam || '',
+          q.section || '',
+          difficulty,
+          currentYear,
+          "AI-Generated"
+        ].filter(Boolean)
       }));
     } catch (error) {
       console.error("AI Generation Error:", error);

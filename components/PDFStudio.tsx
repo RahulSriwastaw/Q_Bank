@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
     X, Download, FileText, Settings2, Palette, Eye, Bold, Check, RefreshCw,
     ArrowLeft, Share2, Printer, FileJson, Layers, MapPin, Phone, Globe, ChevronDown,
-    ShieldCheck
+    ShieldCheck, Sparkles, Calendar, Clock
 } from 'lucide-react';
 import { Button } from './Button';
 import { pdfGeneratorService, PDFConfig } from '../services/pdfGeneratorService';
@@ -13,6 +13,24 @@ interface PDFStudioProps {
     initialSetId: string | null;
     onExit: () => void;
 }
+
+const PrintStyles = () => (
+    <style dangerouslySetInnerHTML={{
+        __html: `
+        @media print {
+            @page { margin: 0; size: auto; }
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .no-print { display: none !important; }
+            .print-visible { overflow: visible !important; height: auto !important; }
+        }
+        /* High definition print fix */
+        .print-exact {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    `}} />
+);
 
 export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) => {
     const [set, setSet] = useState<QuestionSet | null>(null);
@@ -78,6 +96,44 @@ export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) =>
         window.print();
     };
 
+    const renderIntelligentTags = (q: Question) => {
+        // Current Affairs - Show Date (Red)
+        if ((q.subject === 'Current Affairs' || q.tags?.includes('Current Affairs')) && q.date) {
+            const dateObj = new Date(q.date);
+            const dateStr = `${dateObj.getDate()} ${dateObj.toLocaleString('en', { month: 'short' })}, ${dateObj.getFullYear()}`;
+            return (
+                <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-200 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-wider leading-none print-exact">
+                    <Calendar size={11} className="stroke-[2.5]" />
+                    <span className="mt-[1px]">{dateStr}</span>
+                </span>
+            );
+        }
+
+        // AI Generated - Show Topic (Purple)
+        if ((q.tags?.includes('AI-Generated') || q.id?.startsWith('q_')) && q.topic) {
+            return (
+                <span className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-wider leading-none print-exact">
+                    <Sparkles size={11} className="stroke-[2.5]" />
+                    <span className="mt-[1px]">AI: {q.topic}</span>
+                </span>
+            );
+        }
+
+        // Previous Year - Show Exam + Year + Shift (Dark)
+        if (q.exam && q.year) {
+            return (
+                <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 border border-slate-200 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-wider leading-none print-exact">
+                    <Clock size={11} className="stroke-[2.5]" />
+                    <span className="mt-[1px]">
+                        {q.exam} | {q.date ? new Date(q.date).toLocaleDateString() + ' | ' : ''} {q.year} {q.section ? `| ${q.section}` : ''}
+                    </span>
+                </span>
+            );
+        }
+
+        return null;
+    };
+
     const stripHTML = (html: string) => {
         const tmp = document.createElement('DIV');
         tmp.innerHTML = html;
@@ -109,212 +165,207 @@ export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) =>
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-            {/* Top Configuration Area - Refined 4-Column Layout */}
-            <div className="bg-white border-b shadow-sm p-4 md:p-6 lg:p-8">
-                <div className="max-w-[1600px] mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <PrintStyles />
+            {/* Top Configuration Area - 5 Column Compact Layout */}
+            <div className="bg-white border-b shadow-sm p-2">
+                <div className="max-w-[1900px] mx-auto">
+                    <div className="grid grid-cols-5 gap-2">
 
-                    {/* Column 1: Layout & Core Text */}
-                    <div className="space-y-6">
-                        <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b pb-2 mb-4">PDF Configuration</h3>
-                        <div className="space-y-4">
-                            <RangeSlider label="Font Size" value={config.fontSize} min={10} max={32} onChange={v => setConfig({ ...config, fontSize: v })} />
-                            <RangeSlider label="Spacing" value={config.spacing} min={5} max={40} onChange={v => setConfig({ ...config, spacing: v })} />
-                            <div className="grid grid-cols-2 gap-4 pt-2">
-                                <div className="space-y-1.5 px-1">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Columns</label>
+                        {/* Column 1: Layout & Core Text */}
+                        <div className="space-y-2">
+                            <h3 className="text-[9px] font-black text-slate-700 uppercase border-b pb-1 mb-1">PDF Config</h3>
+                            <div className="space-y-1">
+                                <RangeSlider label="Font Size" value={config.fontSize} min={10} max={32} onChange={v => setConfig({ ...config, fontSize: v })} />
+                                <RangeSlider label="Spacing" value={config.spacing} min={5} max={40} onChange={v => setConfig({ ...config, spacing: v })} />
+                                <RangeSlider label="Question Gap" value={config.questionGap || 24} min={0} max={100} onChange={v => setConfig({ ...config, questionGap: v })} />
+                                <RangeSlider label="Q-Option Gap" value={config.questionOptionGap || 8} min={0} max={40} onChange={v => setConfig({ ...config, questionOptionGap: v })} />
+                                <div className="grid grid-cols-2 gap-4 pt-2">
+                                    <div className="space-y-1.5 px-1">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Columns</label>
+                                        <div className="flex bg-slate-100 rounded-lg p-1">
+                                            <button
+                                                onClick={() => setConfig({ ...config, columns: 1 })}
+                                                className={`flex-1 py-1 text-[10px] font-black rounded ${config.columns === 1 ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}
+                                            >1 COL</button>
+                                            <button
+                                                onClick={() => setConfig({ ...config, columns: 2 })}
+                                                className={`flex-1 py-1 text-[10px] font-black rounded ${config.columns === 2 ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}
+                                            >2 COL</button>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <Toggle label="Answer Bold" value={config.answerBold} onChange={v => setConfig({ ...config, answerBold: v })} />
+                                        {/* Show Solution removed (duplicate) */}
+                                    </div>
+                                </div>
+                                <RangeSlider label="Option Spacing" value={config.optionSpacing} min={0} max={40} onChange={v => setConfig({ ...config, optionSpacing: v })} />
+                            </div>
+                        </div>
+
+                        {/* Column 2: Visibility & Metadata */}
+                        <div className="space-y-2">
+                            <h3 className="text-[9px] font-black text-slate-700 uppercase border-b pb-1 mb-1">Visibility</h3>
+                            <div className="space-y-1">
+                                <Toggle label="Show Answer Widget" value={config.showAnswerWidget} onChange={v => setConfig({ ...config, showAnswerWidget: v })} />
+                                <Toggle label="Hide Question" value={config.hideQuestion} onChange={v => setConfig({ ...config, hideQuestion: v })} />
+                                <Toggle label="Hide Option" value={config.hideOption} onChange={v => setConfig({ ...config, hideOption: v })} />
+                                <Toggle label="Hide Box (Explanation)" value={config.hideBoxExplanation} onChange={v => setConfig({ ...config, hideBoxExplanation: v })} />
+                                <Toggle label="Show Solution" value={config.showSolution} onChange={v => setConfig({ ...config, showSolution: v })} />
+                                <Toggle label="Tags" value={config.previousYearTag} onChange={v => setConfig({ ...config, previousYearTag: v })} />
+                                <Toggle label="Show QR" value={config.showQR} onChange={v => setConfig({ ...config, showQR: v })} />
+                                <Toggle label="Page Border" value={config.showPageBorder} onChange={v => setConfig({ ...config, showPageBorder: v })} />
+                                <Toggle label="Show Option E" value={config.show5thOption} onChange={v => setConfig({ ...config, show5thOption: v })} />
+                                <div className="space-y-2 mt-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Language</label>
                                     <div className="flex bg-slate-100 rounded-lg p-1">
-                                        <button
-                                            onClick={() => setConfig({ ...config, columns: 1 })}
-                                            className={`flex-1 py-1 text-[10px] font-black rounded ${config.columns === 1 ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}
-                                        >1 COL</button>
-                                        <button
-                                            onClick={() => setConfig({ ...config, columns: 2 })}
-                                            className={`flex-1 py-1 text-[10px] font-black rounded ${config.columns === 2 ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400'}`}
-                                        >2 COL</button>
+                                        {['hi', 'en', 'both'].map((mode) => (
+                                            <button
+                                                key={mode}
+                                                onClick={() => setConfig({ ...config, language: mode as any })}
+                                                className={`flex-1 py-1.5 text-[10px] font-black uppercase rounded transition-all ${config.language === mode
+                                                    ? 'bg-white shadow-sm text-indigo-600'
+                                                    : 'text-slate-400 hover:text-slate-600'
+                                                    }`}
+                                            >
+                                                {mode === 'hi' ? 'Hindi' : mode === 'en' ? 'English' : 'Both'}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                    <Toggle label="Answer Bold" value={config.answerBold} onChange={v => setConfig({ ...config, answerBold: v })} />
-                                    <Toggle label="Show Solution" value={config.showSolution} onChange={v => setConfig({ ...config, showSolution: v })} />
-                                </div>
-                            </div>
-                            <RangeSlider label="Option Spacing" value={config.optionSpacing} min={0} max={40} onChange={v => setConfig({ ...config, optionSpacing: v })} />
-                            <RangeSlider label="Question Opacity" value={config.questionOpacity} min={0} max={1} step={0.1} onChange={v => setConfig({ ...config, questionOpacity: v })} />
-                            <RangeSlider label="Option Opacity" value={config.optionOpacity} min={0} max={1} step={0.1} onChange={v => setConfig({ ...config, optionOpacity: v })} />
-                        </div>
-                    </div>
-
-                    {/* Column 2: Visibility & Metadata */}
-                    <div className="space-y-6">
-                        <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b pb-2 mb-4">Visibility & Toggles</h3>
-                        <div className="space-y-3">
-                            <Toggle label="Show Answer Widget" value={config.showAnswerWidget} onChange={v => setConfig({ ...config, showAnswerWidget: v })} />
-                            <Toggle label="Hide Question" value={config.hideQuestion} onChange={v => setConfig({ ...config, hideQuestion: v })} />
-                            <Toggle label="Hide Option" value={config.hideOption} onChange={v => setConfig({ ...config, hideOption: v })} />
-                            <Toggle label="Hide Box (Explanation)" value={config.hideBoxExplanation} onChange={v => setConfig({ ...config, hideBoxExplanation: v })} />
-                            <Toggle label="Show Solution" value={config.showSolution} onChange={v => setConfig({ ...config, showSolution: v })} />
-                            <Toggle label="Tags" value={config.previousYearTag} onChange={v => setConfig({ ...config, previousYearTag: v })} />
-                            <Toggle label="Show QR" value={config.showQR} onChange={v => setConfig({ ...config, showQR: v })} />
-                            <Toggle label="Page Border" value={config.showPageBorder} onChange={v => setConfig({ ...config, showPageBorder: v })} />
-                            <Toggle label="Show Option E" value={config.show5thOption} onChange={v => setConfig({ ...config, show5thOption: v })} />
-                            <div className="space-y-2 mt-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Language</label>
-                                <div className="flex bg-slate-100 rounded-lg p-1">
-                                    {['hi', 'en', 'both'].map((mode) => (
-                                        <button
-                                            key={mode}
-                                            onClick={() => setConfig({ ...config, language: mode as any })}
-                                            className={`flex-1 py-1.5 text-[10px] font-black uppercase rounded transition-all ${config.language === mode
-                                                ? 'bg-white shadow-sm text-indigo-600'
-                                                : 'text-slate-400 hover:text-slate-600'
-                                                }`}
-                                        >
-                                            {mode === 'hi' ? 'Hindi' : mode === 'en' ? 'English' : 'Both'}
-                                        </button>
-                                    ))}
-                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Column 3: Specific Config & Advanced */}
-                    <div className="space-y-6">
-                        <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest border-b pb-2 mb-4">Specific Config</h3>
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Filter Questions (e.g. 1, 3-5):</label>
-                                <input
-                                    type="text"
-                                    placeholder="Enter question numbers"
-                                    value={config.logo1 || ''}
-                                    onChange={e => setConfig({ ...config, logo1: e.target.value })}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Section Header Text:</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Mathematics"
-                                    value={config.logo2 || ''}
-                                    onChange={e => setConfig({ ...config, logo2: e.target.value })}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+                        {/* Column 3: Specific Config & Advanced */}
+                        <div className="space-y-2">
+                            <h3 className="text-[9px] font-black text-slate-700 uppercase border-b pb-1 mb-1">Specific Config</h3>
+                            <div className="space-y-1">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Header Title:</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Filter Questions (e.g. 1, 3-5):</label>
                                     <input
                                         type="text"
-                                        value={config.customTitle}
-                                        onChange={e => setConfig({ ...config, customTitle: e.target.value })}
-                                        className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-[10px] font-bold outline-none font-sans"
+                                        placeholder="Enter question numbers"
+                                        value={config.logo1 || ''}
+                                        onChange={e => setConfig({ ...config, logo1: e.target.value })}
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Footer Text:</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Section Header Text:</label>
                                     <input
                                         type="text"
-                                        value={config.customFooter}
-                                        onChange={e => setConfig({ ...config, customFooter: e.target.value })}
-                                        className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-[10px] font-bold outline-none font-sans"
+                                        placeholder="e.g. Mathematics"
+                                        value={config.logo2 || ''}
+                                        onChange={e => setConfig({ ...config, logo2: e.target.value })}
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none"
                                     />
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Header Tagline:</label>
-                                <input
-                                    type="text"
-                                    value={config.customTagline}
-                                    onChange={e => setConfig({ ...config, customTagline: e.target.value })}
-                                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-[10px] font-bold outline-none font-sans"
-                                />
-                            </div>
-                            <div className="grid grid-cols-3 gap-2">
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase">Contact:</label>
-                                    <input type="text" value={config.headerContact} onChange={e => setConfig({ ...config, headerContact: e.target.value })} className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[9px] outline-none" />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase">Teacher:</label>
-                                    <input type="text" value={config.headerTeacher} onChange={e => setConfig({ ...config, headerTeacher: e.target.value })} className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[9px] outline-none" />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase">Exam:</label>
-                                    <input type="text" value={config.headerExam} onChange={e => setConfig({ ...config, headerExam: e.target.value })} className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[9px] outline-none" />
-                                </div>
-                            </div>
-                            <RangeSlider label="Option Boldness" value={config.optionBoldness} min={400} max={900} step={100} onChange={v => setConfig({ ...config, optionBoldness: v })} />
-                            <RangeSlider label="Solution Boldness" value={config.solutionBoldness} min={400} max={900} step={100} onChange={v => setConfig({ ...config, solutionBoldness: v })} />
-
-                            {/* Logo Upload Section */}
-                            <div className="space-y-2 mt-4 pt-4 border-t border-slate-100">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Custom Logo</label>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0">
-                                        {config.mainLogo ? (
-                                            <img src={config.mainLogo} alt="Logo" className="w-full h-full object-contain" />
-                                        ) : (
-                                            <Printer size={16} className="text-slate-300" />
-                                        )}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Header Title:</label>
+                                        <input
+                                            type="text"
+                                            value={config.customTitle}
+                                            onChange={e => setConfig({ ...config, customTitle: e.target.value })}
+                                            className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-[10px] font-bold outline-none font-sans"
+                                        />
                                     </div>
-                                    <input
-                                        type="file"
-                                        id="logo-upload"
-                                        className="hidden"
-                                        accept="image/*"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                                const reader = new FileReader();
-                                                reader.onloadend = () => {
-                                                    setConfig({ ...config, mainLogo: reader.result as string });
-                                                };
-                                                reader.readAsDataURL(file);
-                                            }
-                                        }}
-                                    />
-                                    <label htmlFor="logo-upload" className="cursor-pointer flex-1 py-2 text-center text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
-                                        Upload Logo
-                                    </label>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">Footer Text:</label>
+                                        <input
+                                            type="text"
+                                            value={config.customFooter}
+                                            onChange={e => setConfig({ ...config, customFooter: e.target.value })}
+                                            className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-[10px] font-bold outline-none font-sans"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase">Contact:</label>
+                                        <input type="text" value={config.headerContact} onChange={e => setConfig({ ...config, headerContact: e.target.value })} className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[9px] outline-none" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase">Teacher:</label>
+                                        <input type="text" value={config.headerTeacher} onChange={e => setConfig({ ...config, headerTeacher: e.target.value })} className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[9px] outline-none" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase">Exam:</label>
+                                        <input type="text" value={config.headerExam} onChange={e => setConfig({ ...config, headerExam: e.target.value })} className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[9px] outline-none" />
+                                    </div>
                                 </div>
                             </div>
-
-                            <Button className="w-full h-10 bg-indigo-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-indigo-700 mt-4">Filter By Subject</Button>
-                        </div>
-                    </div>
-
-                    {/* Column 4: Colors & Fullscreen */}
-                    <div className="space-y-6 text-right">
-                        <div className="mb-6 flex flex-col items-end gap-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">QR Code Data</span>
-                            <select className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-600 focus:ring-2 focus:ring-indigo-500/20 outline-none">
-                                <option>Save Set</option>
-                                <option>Download PDF</option>
-                            </select>
-                            <code className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded truncate w-full flex justify-between items-center">
-                                Set ID: <span className="text-slate-600 ml-2">{set.setId}</span>
-                            </code>
                         </div>
 
-                        <div className="space-y-4">
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b pb-1">Change Colors</h4>
-                            <ColorPicker label="Header Bg-Color" value={config.headerBgColor} onChange={v => setConfig({ ...config, headerBgColor: v })} />
-                            <ColorPicker label="Footer Bg-Color" value={config.footerBgColor} onChange={v => setConfig({ ...config, footerBgColor: v })} />
-                            <ColorPicker label="Question Color" value={config.questionColor} onChange={v => setConfig({ ...config, questionColor: v })} />
-                            <ColorPicker label="Option Color" value={config.optionColor} onChange={v => setConfig({ ...config, optionColor: v })} />
-                            <ColorPicker label="Q-Number Color" value={config.questionNumberColor} onChange={v => setConfig({ ...config, questionNumberColor: v })} />
+                        {/* Column 4: Boldness & Set Data */}
+                        <div className="space-y-2">
+                            <h3 className="text-[9px] font-black text-slate-700 uppercase border-b pb-1 mb-1">Boldness & Data</h3>
+                            <div className="space-y-1">
+                                <RangeSlider label="Option Boldness" value={config.optionBoldness} min={400} max={900} step={100} onChange={v => setConfig({ ...config, optionBoldness: v })} />
+                                <RangeSlider label="Solution Boldness" value={config.solutionBoldness} min={400} max={900} step={100} onChange={v => setConfig({ ...config, solutionBoldness: v })} />
+
+                                {/* Logo Upload */}
+                                <div className="space-y-1 pt-2 border-t border-slate-100">
+                                    <label className="text-[9px] font-bold text-slate-500 uppercase block">Logo</label>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-10 h-10 bg-slate-50 border border-slate-200 rounded flex items-center justify-center overflow-hidden shrink-0">
+                                            {config.mainLogo ? (
+                                                <img src={config.mainLogo} alt="Logo" className="w-full h-full object-contain" />
+                                            ) : (
+                                                <Printer size={12} className="text-slate-300" />
+                                            )}
+                                        </div>
+                                        <input
+                                            type="file"
+                                            id="logo-upload"
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onloadend = () => {
+                                                        setConfig({ ...config, mainLogo: reader.result as string });
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            }}
+                                        />
+                                        <label htmlFor="logo-upload" className="cursor-pointer flex-1 py-1 text-center text-[9px] font-black uppercase text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100">
+                                            Upload
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <span className="text-[9px] font-bold text-slate-500 uppercase block pt-2 border-t border-slate-100">Set ID:</span>
+                                <code className="text-[9px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded block truncate">{set.setId}</code>
+                            </div>
                         </div>
 
-                        <div className="mt-6 pt-4 border-t w-full">
-                            <button className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline flex items-center gap-1 justify-end w-full">
-                                Go Fullscreen <ChevronDown size={14} className="-rotate-90" />
-                            </button>
+                        {/* Column 5: Colors */}
+                        <div className="space-y-2">
+                            <h3 className="text-[9px] font-black text-slate-700 uppercase border-b pb-1 mb-1">Colors</h3>
+                            <div className="space-y-1">
+                                <ColorPicker label="Header" value={config.headerBgColor} onChange={v => setConfig({ ...config, headerBgColor: v })} />
+                                <ColorPicker label="Footer" value={config.footerBgColor} onChange={v => setConfig({ ...config, footerBgColor: v })} />
+                                <ColorPicker label="Question" value={config.questionColor} onChange={v => setConfig({ ...config, questionColor: v })} />
+                                <ColorPicker label="Option" value={config.optionColor} onChange={v => setConfig({ ...config, optionColor: v })} />
+                                <ColorPicker label="Q-Number" value={config.questionNumberColor} onChange={v => setConfig({ ...config, questionNumberColor: v })} />
+
+                                {/* Header Tagline */}
+                                <div className="space-y-1 pt-2 border-t border-slate-100">
+                                    <label className="text-[9px] font-bold text-slate-500 uppercase block">Header Tagline:</label>
+                                    <input
+                                        type="text"
+                                        value={config.customTagline}
+                                        onChange={e => setConfig({ ...config, customTagline: e.target.value })}
+                                        className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[9px] font-bold outline-none"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-
             {/* Action Strip (Export as .doc, etc) */}
             <div className="bg-slate-50 border-b p-4">
                 <div className="max-w-[1600px] mx-auto flex items-center gap-2">
@@ -349,9 +400,14 @@ export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) =>
             <div className="flex-1 bg-slate-200/50 p-6 md:p-8 overflow-y-auto print:p-0 print:bg-white print:overflow-visible">
                 <div
                     ref={previewRef}
-                    className={`max-w-[1200px] mx-auto bg-white shadow-2xl min-h-[1414px] p-[10mm] transition-all duration-300 transform origin-top print:shadow-none print:max-w-none print:w-full print:p-0 text-slate-900 relative overflow-hidden ${config.showPageBorder ? 'ring-[3px] ring-inset ring-black' : ''}`}
+                    className={`max-w-[1200px] mx-auto bg-white shadow-2xl min-h-[1414px] p-[10mm] transition-all duration-300 transform origin-top print:shadow-none print:max-w-none print:w-full print:p-0 text-slate-900 relative overflow-hidden`}
                     style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
                 >
+                    {/* Page Border Overlay (Inset for proper A4 margin) */}
+                    {config.showPageBorder && (
+                        <div className="absolute inset-[5mm] border-[2px] border-black pointer-events-none z-50 print-exact"></div>
+                    )}
+
                     {/* Background Central Watermark (Reference Style) */}
                     <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.03]">
                         {config.mainLogo ? (
@@ -393,7 +449,7 @@ export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) =>
                         </div>
                     </div>
 
-                    <div className={`grid ${config.columns === 2 ? 'grid-cols-2 gap-x-8' : 'grid-cols-1'} gap-y-6`}>
+                    <div className={`grid ${config.columns === 2 ? 'grid-cols-2 gap-x-8' : 'grid-cols-1'}`} style={{ rowGap: `${config.questionGap || 24}px` }}>
                         {config.logo2 && (
                             <div className="col-span-full text-center border-y-2 border-slate-900 py-2 mb-4 bg-slate-50">
                                 <h2 className="text-xl font-black uppercase tracking-[0.2em]">{config.logo2}</h2>
@@ -419,8 +475,12 @@ export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) =>
                                     {!config.hideQuestion && (
                                         <div className="flex flex-col relative pl-10">
                                             {/* Question Number */}
-                                            <div className="absolute left-0 top-0 text-lg font-black"
-                                                style={{ color: '#000000' }}
+                                            <div className="absolute left-0 top-0 font-black"
+                                                style={{
+                                                    color: config.questionNumberColor || '#000000',
+                                                    fontSize: `${config.fontSize + 2}px`,
+                                                    lineHeight: `${config.fontSize + config.spacing}px`
+                                                }}
                                             >
                                                 {idx + 1}.
                                             </div>
@@ -428,19 +488,25 @@ export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) =>
                                             <div className="flex-1">
                                                 <div className="relative">
                                                     {(config.language === 'en' || config.language === 'both') && (
-                                                        <div className="text-lg leading-tight tracking-tight font-hindi"
-                                                            style={{ color: config.questionColor, fontWeight: config.questionBoldness, opacity: config.questionOpacity }}
+                                                        <div className="leading-tight tracking-tight font-hindi"
+                                                            style={{
+                                                                color: config.questionColor,
+                                                                fontWeight: config.questionBoldness,
+                                                                fontSize: `${config.fontSize}px`,
+                                                                lineHeight: `${config.fontSize + config.spacing}px`
+                                                            }}
                                                         >
                                                             {stripHTML(q.question_eng)}
                                                         </div>
                                                     )}
 
                                                     {(config.language === 'hi' || config.language === 'both') && q.question_hin && (
-                                                        <div className={`font-hindi ${config.language === 'both' ? 'text-slate-500 text-base mt-2' : 'text-lg text-[#EF4444]'}`}
+                                                        <div className={`font-hindi ${config.language === 'both' ? 'text-slate-500 mt-2' : 'text-[#EF4444]'}`}
                                                             style={{
-                                                                opacity: config.questionOpacity,
                                                                 color: config.language === 'hi' ? config.questionColor : undefined,
-                                                                fontWeight: config.language === 'hi' ? config.questionBoldness : undefined
+                                                                fontWeight: config.language === 'hi' ? config.questionBoldness : undefined,
+                                                                fontSize: `${config.language === 'both' ? config.fontSize - 2 : config.fontSize}px`,
+                                                                lineHeight: `${config.fontSize + config.spacing}px`
                                                             }}
                                                         >
                                                             {stripHTML(q.question_hin)}
@@ -448,16 +514,14 @@ export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) =>
                                                     )}
 
                                                     {config.previousYearTag && (
-                                                        <div className="mt-2 mb-2 flex justify-end">
-                                                            <span className="inline-flex items-center justify-center bg-[#1E293B] text-white text-[9px] font-black px-3 h-5 rounded uppercase tracking-wider leading-none">
-                                                                {set?.name?.split(' ')[0]} Teacher Expected
-                                                            </span>
+                                                        <div className="mt-2 mb-2 flex justify-end gap-1 flex-wrap">
+                                                            {renderIntelligentTags(q)}
                                                         </div>
                                                     )}
                                                 </div>
 
                                                 {!config.hideOption && (
-                                                    <div className="mt-2" style={{ marginTop: `${config.optionSpacing}px` }}>
+                                                    <div className="mt-2" style={{ marginTop: `${config.questionOptionGap || 8}px` }}>
                                                         {(() => {
                                                             const optionsData = [
                                                                 { label: '(a)', text: q.option1_eng, textHi: q.option1_hin, code: 'a' },
@@ -486,24 +550,28 @@ export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) =>
                                                                         };
                                                                         const isCorrect = getIsCorrect(i);
                                                                         return (
-                                                                            <div key={i} className="flex gap-3 text-base" style={{ opacity: config.optionOpacity, marginBottom: `${config.optionSpacing / 4}px` }}>
-                                                                                <span className="font-bold text-slate-400 shrink-0">{opt.label}</span>
-                                                                                <div className="space-y-1 text-lg">
+                                                                            <div key={i} className="flex gap-3" style={{ marginBottom: `${config.optionSpacing}px` }}>
+                                                                                <span className="font-bold text-slate-400 shrink-0" style={{ fontSize: `${config.fontSize}px` }}>{opt.label}</span>
+                                                                                <div className="space-y-1">
                                                                                     {(config.language === 'en' || config.language === 'both') && (
                                                                                         <span className={`font-hindi transition-all ${isCorrect && config.answerBold ? 'font-black text-green-700' : 'font-bold'}`}
                                                                                             style={{
                                                                                                 color: isCorrect && config.answerBold ? '#15803d' : config.optionColor,
-                                                                                                fontWeight: isCorrect && config.answerBold ? 900 : config.optionBoldness
+                                                                                                fontWeight: isCorrect && config.answerBold ? 900 : config.optionBoldness,
+                                                                                                fontSize: `${config.fontSize}px`,
+                                                                                                lineHeight: `${config.fontSize + config.spacing}px`
                                                                                             }}
                                                                                         >
                                                                                             {stripHTML(opt.text)}
                                                                                         </span>
                                                                                     )}
                                                                                     {(config.language === 'hi' || config.language === 'both') && opt.textHi && (
-                                                                                        <div className={`font-hindi ${config.language === 'both' ? 'text-slate-400 text-sm' : 'text-lg font-bold'}`}
+                                                                                        <div className={`font-hindi ${config.language === 'both' ? 'text-slate-400' : 'font-bold'}`}
                                                                                             style={{
                                                                                                 color: config.language === 'hi' ? config.optionColor : undefined,
-                                                                                                fontWeight: config.language === 'hi' ? config.optionBoldness : undefined
+                                                                                                fontWeight: config.language === 'hi' ? config.optionBoldness : undefined,
+                                                                                                fontSize: `${config.language === 'both' ? config.fontSize - 2 : config.fontSize}px`,
+                                                                                                lineHeight: `${config.fontSize + config.spacing}px`
                                                                                             }}
                                                                                         >
                                                                                             {stripHTML(opt.textHi)}
@@ -520,20 +588,24 @@ export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) =>
                                                 )}
 
                                                 {config.showSolution && (q.solution_eng || q.solution_hin) && (
-                                                    <div className="mt-4 border border-red-500 rounded-lg overflow-hidden bg-white/50">
-                                                        <div className="bg-red-500 text-white h-5 flex items-center justify-center text-[10px] font-black uppercase tracking-wider leading-none">
-                                                            Explanation
-                                                        </div>
-                                                        <div className="p-3 space-y-2">
+                                                    <div className={`mt-4 print-exact ${!config.hideBoxExplanation ? 'border border-red-500 rounded-lg overflow-hidden bg-white' : 'pt-2 border-t border-slate-200'}`}>
+                                                        {!config.hideBoxExplanation && (
+                                                            <div className="bg-red-500 text-white h-5 flex items-center justify-center text-[10px] font-black uppercase tracking-wider leading-none print-exact">
+                                                                Explanation
+                                                            </div>
+                                                        )}
+                                                        <div className={`${!config.hideBoxExplanation ? 'p-3' : 'pt-2'} space-y-2`}>
                                                             {(config.language === 'en' || config.language === 'both') && q.solution_eng && (
                                                                 <div className="text-slate-700 text-sm leading-relaxed" style={{ fontWeight: config.solutionBoldness }}>
+                                                                    <span className="font-black mr-2 text-xs uppercase tracking-wider opacity-70">Ans:</span>
                                                                     {stripHTML(q.solution_eng)}
                                                                 </div>
                                                             )}
                                                             {(config.language === 'hi' || config.language === 'both') && q.solution_hin && (
-                                                                <div className={`font-hindi border-t border-slate-100 pt-2 ${config.language === 'both' ? 'text-slate-500 text-xs' : 'text-slate-700 text-sm'}`}
+                                                                <div className={`font-hindi ${config.language === 'both' ? 'border-t border-slate-100 pt-2 text-slate-500 text-xs' : 'text-slate-700 text-sm'}`}
                                                                     style={{ fontWeight: config.language === 'hi' ? config.solutionBoldness : undefined }}
                                                                 >
+                                                                    <span className="font-black mr-2 text-xs uppercase tracking-wider opacity-70">Ans:</span>
                                                                     {stripHTML(q.solution_hin)}
                                                                 </div>
                                                             )}
@@ -582,7 +654,7 @@ export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) =>
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
         </div >
     );
 };

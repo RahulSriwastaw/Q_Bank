@@ -65,9 +65,42 @@ export const storageService = {
   },
 
   saveQuestion: async (question: Question): Promise<void> => {
+    // Only include fields that exist in the Supabase 'questions' table schema
+    // Filter out extra frontend-only fields that don't have database columns
+    const allowedFields = {
+      id: question.id,
+      question_unique_id: question.question_unique_id,
+      question_hin: question.question_hin,
+      question_eng: question.question_eng,
+      subject: question.subject,
+      chapter: question.chapter,
+      option1_hin: question.option1_hin,
+      option1_eng: question.option1_eng,
+      option2_hin: question.option2_hin,
+      option2_eng: question.option2_eng,
+      option3_hin: question.option3_hin,
+      option3_eng: question.option3_eng,
+      option4_hin: question.option4_hin,
+      option4_eng: question.option4_eng,
+      option5_hin: question.option5_hin,
+      option5_eng: question.option5_eng,
+      answer: question.answer,
+      solution_hin: question.solution_hin,
+      solution_eng: question.solution_eng,
+      type: question.type,
+      difficulty: question.difficulty,
+      language: question.language,
+      tags: question.tags,
+      createdDate: question.createdDate,
+      exam: question.exam,
+      year: question.year,
+      date: question.date,
+      flagged: question.flagged
+    };
+
     const { error } = await supabase
       .from('questions')
-      .upsert(question);
+      .upsert(allowedFields);
 
     if (error) {
       console.error('Error saving question:', error);
@@ -76,9 +109,50 @@ export const storageService = {
   },
 
   saveQuestionsBulk: async (newQuestions: Question[]): Promise<void> => {
+    // Filter each question to only include allowed database fields
+    // Also remove null/undefined values to prevent database errors
+    const filteredQuestions = newQuestions.map(q => {
+      const cleaned: Record<string, any> = {
+        id: q.id || `q_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        question_unique_id: q.question_unique_id || q.id,
+        question_hin: q.question_hin || '',
+        question_eng: q.question_eng || '',
+        subject: q.subject || 'General',
+        chapter: q.chapter || '',
+        option1_hin: q.option1_hin || '',
+        option1_eng: q.option1_eng || '',
+        option2_hin: q.option2_hin || '',
+        option2_eng: q.option2_eng || '',
+        option3_hin: q.option3_hin || '',
+        option3_eng: q.option3_eng || '',
+        option4_hin: q.option4_hin || '',
+        option4_eng: q.option4_eng || '',
+        answer: q.answer || '1',
+        solution_hin: q.solution_hin || '',
+        solution_eng: q.solution_eng || '',
+        type: q.type || 'MCQ',
+        difficulty: q.difficulty || 'Medium',
+        language: q.language || 'Bilingual',
+        tags: Array.isArray(q.tags) ? q.tags : [],
+        createdDate: q.createdDate || new Date().toISOString()
+      };
+
+      // Only add optional fields if they have valid non-null values
+      if (q.option5_hin) cleaned.option5_hin = q.option5_hin;
+      if (q.option5_eng) cleaned.option5_eng = q.option5_eng;
+      if (q.exam) cleaned.exam = q.exam;
+      if (q.year) cleaned.year = q.year;
+      if (q.date) cleaned.date = q.date;
+      if (typeof q.flagged === 'boolean') cleaned.flagged = q.flagged;
+
+      return cleaned;
+    });
+
+    console.log('Saving questions:', filteredQuestions.length, filteredQuestions[0]);
+
     const { error } = await supabase
       .from('questions')
-      .insert(newQuestions);
+      .insert(filteredQuestions);
 
     if (error) {
       console.error('Error bulk saving questions:', error);
@@ -99,26 +173,64 @@ export const storageService = {
   },
 
   deleteQuestion: async (id: string): Promise<void> => {
-    const { error } = await supabase
+    // Try deleting from legacy 'questions' table
+    const { error: legacyError } = await supabase
       .from('questions')
       .delete()
       .eq('id', id);
 
-    if (error) {
-      console.error('Error deleting question:', error);
-      throw error;
+    if (legacyError) {
+      console.error('Error deleting from questions:', legacyError);
+    }
+
+    // Also try deleting from 'questions_master' table (id might be numeric question_id)
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId)) {
+      const { error: masterError } = await supabase
+        .from('questions_master')
+        .delete()
+        .eq('question_id', numericId);
+
+      if (masterError) {
+        console.error('Error deleting from questions_master:', masterError);
+      }
+    }
+
+    // If legacy failed and no numeric id, throw error
+    if (legacyError && isNaN(numericId)) {
+      throw legacyError;
     }
   },
 
   deleteQuestionsBulk: async (ids: string[]): Promise<void> => {
-    const { error } = await supabase
+    // Delete from both tables since getQuestions fetches from both
+    // First try deleting from legacy 'questions' table
+    const { error: legacyError } = await supabase
       .from('questions')
       .delete()
       .in('id', ids);
 
-    if (error) {
-      console.error('Error bulk deleting questions:', error);
-      throw error;
+    if (legacyError) {
+      console.error('Error bulk deleting from questions:', legacyError);
+    }
+
+    // Also try deleting from 'questions_master' table (ids might be numeric question_id)
+    // Convert string ids to numbers for questions_master
+    const numericIds = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+    if (numericIds.length > 0) {
+      const { error: masterError } = await supabase
+        .from('questions_master')
+        .delete()
+        .in('question_id', numericIds);
+
+      if (masterError) {
+        console.error('Error bulk deleting from questions_master:', masterError);
+      }
+    }
+
+    // If both failed, throw an error
+    if (legacyError && (!numericIds.length)) {
+      throw legacyError;
     }
   },
 
@@ -153,7 +265,7 @@ export const storageService = {
   saveSet: async (set: QuestionSet): Promise<void> => {
     const { error } = await supabase
       .from('sets')
-      .upsert(set);
+      .upsert(set, { onConflict: 'setId' });
 
     if (error) {
       console.error('Error saving set:', error);

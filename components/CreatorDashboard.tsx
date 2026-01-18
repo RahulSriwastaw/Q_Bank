@@ -7,7 +7,7 @@ import {
   Settings2, Trash, Database, FileJson, ChevronDown, Wand2, Globe, Settings, Clock, Bold,
   Italic, Underline as UnderlineIcon, List, ListOrdered, Type as TypeIcon, Undo, Redo,
   ChevronRight, Hash, FilterX, Check, Image as ImageIcon, Eraser, Heading1, Heading2,
-  CircleDot, Circle, Lock, Key, Share2, Flag, Printer, AlertCircle, Bell, User
+  CircleDot, Circle, Lock, Key, Share2, Flag, Printer, AlertCircle, Bell, User, ArrowDownCircle, Star
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { geminiService, CURRENT_AFFAIRS_CATEGORIES } from '../services/geminiService';
@@ -197,148 +197,135 @@ const CascadingSelector: React.FC<CascadingSelectorProps> = ({ library, onSelect
     });
   };
 
-  const Column = ({ title, items, selected, onSelect, subText }: any) => (
-    <div className="flex-1 flex flex-col min-w-[280px] max-w-[340px] bg-white rounded-[40px] border border-slate-100 shadow-[0_15px_40px_rgba(0,0,0,0.03)] overflow-hidden h-full min-h-0 relative group/col">
-      <div className="px-8 py-5 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
-        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">{title}</h4>
-        {subText && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
+  const Column = ({ title, items, selected, onSelect }: any) => (
+    <div className="w-80 flex flex-col min-w-[320px] shrink-0">
+      <div className="h-10 bg-slate-50/80 border-b border-slate-100 flex items-center px-4 justify-between backdrop-blur-sm sticky top-0 z-10">
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{title}</span>
+        <span className="text-[9px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/10">{items.length} Nodes</span>
       </div>
-      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-2 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
         {items.map((item: string) => {
           const isSelected = selected === item;
           return (
             <button
               key={item}
               onClick={() => onSelect(item)}
-              className={`w-full text-left px-6 py-4 rounded-[22px] text-[13px] font-bold transition-all flex items-center justify-between group/item ${isSelected ? 'bg-primary text-white shadow-xl shadow-primary/20 translate-x-1' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+              className={`w-full text-left px-3 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between group ${isSelected ? 'bg-primary text-white shadow-md shadow-primary/20' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
             >
               <span className="truncate">{item}</span>
-              <ChevronRight size={16} className={`transition-transform duration-300 ${isSelected ? 'translate-x-0 scale-110' : 'translate-x-4 opacity-0 group-hover/item:translate-x-0 group-hover/item:opacity-30'}`} />
+              {isSelected && <ChevronRight size={14} />}
             </button>
           );
         })}
         {items.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full opacity-10 py-24 text-center">
-            <Layers size={40} className="mb-4" />
-            <span className="text-[10px] uppercase font-black tracking-[0.3em]">Matrix Void</span>
+          <div className="py-12 text-center opacity-30">
+            <Layers size={24} className="mx-auto mb-2" />
+            <span className="text-[10px] font-bold uppercase">Void</span>
           </div>
         )}
       </div>
-      <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white pointer-events-none" />
     </div>
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent-purple/5 pointer-events-none" />
-
-      <div className="relative z-10 flex-1 flex flex-col p-10 md:p-14 space-y-12 max-w-[1720px] mx-auto w-full h-full overflow-hidden">
-        {/* Cinematic Source Header */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 bg-primary/10 w-fit px-4 py-1.5 rounded-full border border-primary/10">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em]">Source Matrix Protocol</span>
-            </div>
-            <h3 className="text-5xl font-black text-slate-900 tracking-tight font-heading uppercase">Global Sourcing</h3>
-            <p className="text-base font-bold text-slate-400 max-w-xl">Initialize the academic coordinates by navigating the institutional repository tree.</p>
+    <div className="flex flex-col h-full bg-slate-50 relative overflow-hidden font-sans">
+      {/* 1. Technical Header */}
+      <div className="h-14 bg-slate-950 flex items-center justify-between px-6 shrink-0 z-20 shadow-md">
+        <div className="flex items-center gap-4">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-primary/20 ring-1 ring-white/10">
+            <Globe size={18} strokeWidth={2.5} />
           </div>
-
-          <div className="flex items-center gap-4">
-            <button onClick={onCancel} className="px-8 py-4 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all font-sans">Abort Sourcing</button>
-            <button
-              onClick={handleContinue}
-              disabled={!level2}
-              className={`px-16 py-5.5 rounded-[24px] text-[12px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-4 ${!level2 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-950 text-white shadow-2xl shadow-slate-900/40 hover:bg-primary'}`}
-            >
-              Continue to Selection <ChevronRight size={18} />
-            </button>
+          <div>
+            <h3 className="text-white font-black uppercase tracking-wider text-sm leading-none">Global Sourcing</h3>
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Asset Protocols Active</p>
           </div>
         </div>
-
-        {/* High-Fidelity Domain Navigation */}
-        <div className="flex items-center gap-3 p-1.5 bg-white rounded-[28px] border border-slate-100 w-fit shadow-sm">
-          {[
-            { id: 'subject', label: 'Academic Domains', icon: Globe },
-            { id: 'exam', label: 'Examination Archives', icon: FileJson },
-            { id: 'book', label: 'Curated Literature', icon: BookOpen },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => { setActiveTab(tab.id as any); setLevel1(null); }}
-              className={`flex items-center gap-4 px-10 py-4.5 rounded-[24px] transition-all duration-300 ${activeTab === tab.id ? 'bg-slate-950 text-white shadow-2xl' : 'text-slate-400 hover:text-slate-700'}`}
-            >
-              <tab.icon size={18} />
-              <span className="text-[11px] font-black uppercase tracking-widest">{tab.label}</span>
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <button onClick={onCancel} className="h-8 px-4 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 text-[10px] font-bold uppercase transition-all">
+            Abort Protocol
+          </button>
+          <button
+            onClick={handleContinue}
+            disabled={!level2}
+            className={`h-9 px-6 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all ${!level2 ? 'bg-white/5 text-slate-600 cursor-not-allowed' : 'bg-primary text-white hover:bg-indigo-500 shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5'}`}
+          >
+            Initialize Selection <ChevronRight size={14} />
+          </button>
         </div>
+      </div>
 
-        {/* Dynamic Breadcrumb Stream */}
-        <div className="flex items-center gap-6 bg-slate-950 rounded-[32px] p-6 text-white overflow-hidden relative group/bread">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-accent-purple/10 opacity-0 group-hover/bread:opacity-100 transition-opacity duration-1000" />
-          <div className="relative z-10 flex items-center gap-4 shrink-0 border-r border-white/10 pr-6 mr-2">
-            <Layers size={20} className="text-primary" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">COORDINATES</span>
-          </div>
-          <div className="relative z-10 flex items-center gap-5 overflow-x-auto no-scrollbar py-1">
-            <span className="bg-white/10 text-white px-5 py-2.5 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest">{activeTab}</span>
-            {level1 && (
-              <>
-                <ChevronRight size={14} className="text-white/20" />
-                <span className="bg-primary text-white px-5 py-2.5 rounded-full shadow-lg text-[10px] font-black uppercase tracking-widest animate-in slide-in-from-left-4">{level1}</span>
-              </>
-            )}
-            {level2 && (
-              <>
-                <ChevronRight size={14} className="text-white/20" />
-                <span className="bg-white text-slate-950 px-5 py-2.5 rounded-full shadow-lg text-[10px] font-black uppercase tracking-widest animate-in slide-in-from-left-4">{level2}</span>
-              </>
-            )}
-            {level3 && (
-              <>
-                <ChevronRight size={14} className="text-white/20" />
-                <span className="bg-accent-purple text-white px-5 py-2.5 rounded-full shadow-lg text-[10px] font-black uppercase tracking-widest animate-in slide-in-from-left-4">{level3}</span>
-              </>
-            )}
-            {level4 && (
-              <>
-                <ChevronRight size={14} className="text-white/20" />
-                <span className="bg-accent-cyan text-white px-5 py-2.5 rounded-full shadow-lg text-[10px] font-black uppercase tracking-widest animate-in slide-in-from-left-4">{level4}</span>
-              </>
-            )}
-          </div>
-        </div>
+      {/* 2. Navigation Tabs */}
+      <div className="h-12 bg-white border-b border-slate-200 flex items-center px-6 gap-6 shrink-0 z-10 shadow-sm/50">
+        {[
+          { id: 'subject', label: 'Academic Domains', icon: BookOpen },
+          { id: 'exam', label: 'Exam Archives', icon: FileJson },
+          { id: 'book', label: 'Curated Literature', icon: Layers },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => { setActiveTab(tab.id as any); setLevel1(null); }}
+            className={`h-full flex items-center gap-2.5 border-b-[3px] transition-all px-1 ${activeTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-200'}`}
+          >
+            <tab.icon size={16} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
+            <span className="text-[11px] font-black uppercase tracking-wide">{tab.label}</span>
+          </button>
+        ))}
+      </div>
 
-        {/* Selection Matrix Canvas */}
-        <div className="flex-1 flex gap-8 min-h-0 items-start overflow-hidden py-2 px-1">
-          <Column title="Initialize Discovery" items={list1} selected={level1} onSelect={handleLevel1Click} subText={level1} />
-          <Column title="Refinement Vector" items={list2} selected={level2} onSelect={handleLevel2Click} subText={level2} />
+      {/* 3. Main Workspace */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Columns Container */}
+        <div className="flex-1 overflow-x-auto flex divide-x divide-slate-200 bg-white">
+          <Column title="Initialize Discovery" items={list1} selected={level1} onSelect={handleLevel1Click} />
+          <Column title="Refinement Vector" items={list2} selected={level2} onSelect={handleLevel2Click} />
           {list3.length > 0 && <Column title="Temporal Marker" items={list3} selected={level3} onSelect={handleLevel3Click} />}
-          {list4.length > 0 && <Column title="Asset Source" items={list4} selected={level4} onSelect={handleLevel4Click} />}
+          {list4.length > 0 && <Column title="Source Origin" items={list4} selected={level4} onSelect={handleLevel4Click} />}
 
-          <div className="flex-1 min-w-[340px] bg-slate-950 rounded-[48px] p-12 text-white relative overflow-hidden group/intel shadow-2xl self-stretch">
-            <Sparkles className="absolute -right-16 -top-16 text-primary/10 group-hover/intel:scale-125 transition-transform duration-1000" size={320} />
-            <div className="relative z-10 space-y-8">
-              <div className="w-16 h-16 bg-white/5 rounded-[24px] flex items-center justify-center border border-white/10 group-hover/intel:rotate-12 transition-all">
-                <Wand2 size={28} className="text-primary" />
-              </div>
-              <div className="space-y-4">
-                <h4 className="text-xl font-black uppercase tracking-tight font-heading">Intelligence Calibration</h4>
-                <p className="text-base font-bold text-slate-500 leading-relaxed italic">The system is ready to isolate specific assets within the defined academic boundaries. Complete the coordinates to unlock the asset stream.</p>
-              </div>
-              <div className="pt-8 flex flex-col gap-5">
-                {[
-                  { label: 'Latency', val: 'Low-Flow' },
-                  { label: 'Asset Density', val: 'High-Fidelity' },
-                  { label: 'Encryption', val: 'Institutional' }
-                ].map(meta => (
-                  <div key={meta.label} className="flex items-center justify-between px-6 py-3 bg-white/5 rounded-2xl border border-white/5">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{meta.label}</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-primary">{meta.val}</span>
+          {/* Empty State Fill */}
+          <div className="flex-1 bg-slate-50/30" />
+        </div>
+
+        {/* 4. Intelligence Sidebar (Right) */}
+        <div className="w-80 bg-slate-50 border-l border-slate-200 flex flex-col shrink-0 z-20 shadow-[-10px_0_40px_rgba(0,0,0,0.02)]">
+          <div className="p-8 border-b border-slate-200 bg-white">
+            <div className="w-12 h-12 bg-slate-950 rounded-2xl flex items-center justify-center text-white mb-6 shadow-xl shadow-slate-900/10 rotate-3">
+              <Sparkles size={20} />
+            </div>
+            <h4 className="text-sm font-black uppercase tracking-wide text-slate-900 leading-tight">Intelligence<br />Calibration</h4>
+            <p className="text-[11px] font-medium text-slate-500 mt-3 leading-relaxed">The system is ready to isolate specific assets within the defined academic boundaries. Select vectors to unlock the stream.</p>
+          </div>
+
+          <div className="p-6 space-y-4">
+            {/* Summary Items */}
+            <div className="space-y-1">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-1">Coordinates</span>
+              <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block leading-none mb-1">Domain</span>
+                    <span className="text-xs font-black text-slate-800">{level1 || '...'}</span>
                   </div>
-                ))}
+                </div>
+                <div className="h-px bg-slate-100" />
+                <div className="flex items-start gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block leading-none mb-1">Vector</span>
+                    <span className="text-xs font-black text-slate-800">{level2 || '...'}</span>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2 text-blue-700">
+                <Wand2 size={14} />
+                <span className="text-[10px] font-black uppercase tracking-wider">AI Insight</span>
+              </div>
+              <p className="text-[10px] font-bold text-blue-600/80 leading-relaxed">
+                Selected domain contains high-density assets suitable for competitive exams.
+              </p>
             </div>
           </div>
         </div>
@@ -388,9 +375,13 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
 
   const uniqueSubjects = useMemo(() => Array.from(new Set(library.map(q => q.subject).filter(Boolean))).sort(), [library]);
   const uniqueExams = useMemo(() => Array.from(new Set(library.map(q => q.exam).filter(Boolean))).sort(), [library]);
-  const uniqueYears = useMemo(() => Array.from(new Set(library.map(q => q.year).filter(Boolean))).sort(), [library]);
+  const uniqueYears = useMemo(() => Array.from(new Set(library.map(q => q.year).filter(Boolean))).sort().reverse(), [library]);
   const uniqueDates = useMemo(() => Array.from(new Set(library.map(q => q.date || q.createdDate?.split('T')[0]).filter(Boolean))).sort().reverse(), [library]);
   const uniqueChapters = useMemo(() => Array.from(new Set(library.map(q => q.chapter).filter(Boolean))).sort(), [library]);
+  const uniqueTopics = useMemo(() => Array.from(new Set(library.map(q => q.topic).filter(Boolean))).sort(), [library]);
+  const uniqueSections = useMemo(() => Array.from(new Set(library.map(q => q.section).filter(Boolean))).sort(), [library]);
+  const uniqueCollections = useMemo(() => Array.from(new Set(library.map(q => q.collection).filter(Boolean))).sort(), [library]);
+  const uniquePreviousOf = useMemo(() => Array.from(new Set(library.map(q => q.previous_of).filter(Boolean))).sort(), [library]);
 
   const [showBulkModal, setShowBulkModal] = useState(false);
 
@@ -406,6 +397,57 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
   const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
+
+  // Custom Topics Management
+  const [customTopics, setCustomTopics] = useState<string[]>(() => {
+    const saved = localStorage.getItem('q-bank-custom-topics');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showTopicModal, setShowTopicModal] = useState(false);
+  const [newTopicInput, setNewTopicInput] = useState('');
+  const [editingTopicIndex, setEditingTopicIndex] = useState<number | null>(null);
+  const [editingTopicValue, setEditingTopicValue] = useState('');
+
+  // Save custom topics to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('q-bank-custom-topics', JSON.stringify(customTopics));
+  }, [customTopics]);
+
+  // Combine AI suggested topics with custom topics
+  const allTopics = useMemo(() => {
+    return [...customTopics, ...suggestedTopics.filter(t => !customTopics.includes(t))];
+  }, [customTopics, suggestedTopics]);
+
+  // Topic CRUD functions
+  const handleAddTopic = () => {
+    if (!newTopicInput.trim()) return;
+    if (customTopics.includes(newTopicInput.trim())) {
+      alert('Topic already exists!');
+      return;
+    }
+    setCustomTopics([newTopicInput.trim(), ...customTopics]);
+    setNewTopicInput('');
+  };
+
+  const handleEditTopic = (index: number) => {
+    setEditingTopicIndex(index);
+    setEditingTopicValue(customTopics[index]);
+  };
+
+  const handleSaveTopicEdit = () => {
+    if (editingTopicIndex === null || !editingTopicValue.trim()) return;
+    const updated = [...customTopics];
+    updated[editingTopicIndex] = editingTopicValue.trim();
+    setCustomTopics(updated);
+    setEditingTopicIndex(null);
+    setEditingTopicValue('');
+  };
+
+  const handleDeleteTopic = (index: number) => {
+    if (!confirm(`Delete topic "${customTopics[index]}"?\n\nक्या आप "${customTopics[index]}" topic को हटाना चाहते हैं?`)) return;
+    const updated = customTopics.filter((_, i) => i !== index);
+    setCustomTopics(updated);
+  };
 
   useEffect(() => {
     refreshLibrary();
@@ -485,24 +527,45 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
 
   const handleSaveSet = async () => {
     if (!editingSet) return;
+
+    // Validation
+    if (!editingSet.name || editingSet.name.trim() === '') {
+      alert('Set name is required');
+      return;
+    }
+
     setIsDataLoading(true);
     try {
-      if (editingSet.id) {
-        await storageService.saveSet(editingSet as QuestionSet);
-      } else {
-        const newSet: QuestionSet = {
-          ...editingSet,
-          id: `set_${Date.now()}`,
-          createdDate: new Date().toISOString(),
-          questionCount: editingSet.questionIds?.length || 0
-        } as QuestionSet;
-        await storageService.saveSet(newSet);
-      }
+      // Build payload with only defined fields
+      const payload: any = {
+        setId: editingSet.setId || `set_${Date.now()}`,
+        name: editingSet.name.trim(),
+        description: editingSet.description || '',
+        questionIds: editingSet.questionIds || [],
+        createdDate: editingSet.createdDate || new Date().toISOString(),
+        settings: editingSet.settings || { timerEnabled: false, timePerQuestion: 30, showQuestionNumbers: true, randomize: false }
+      };
+
+      // Only add optional fields if they have values
+      if (editingSet.status) payload.status = editingSet.status;
+      if (editingSet.category) payload.category = editingSet.category;
+      if (editingSet.publishedDate) payload.publishedDate = editingSet.publishedDate;
+      if (editingSet.tags && editingSet.tags.length > 0) payload.tags = editingSet.tags;
+      if (editingSet.password) payload.password = editingSet.password;
+
+      console.log('Saving set with payload:', payload);
+      await storageService.saveSet(payload as QuestionSet);
+      console.log('Set saved successfully');
+
       setIsSetEditorOpen(false);
       setEditingSet(null);
       await refreshSets();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to persist set architecture:", error);
+      if (error && typeof error === 'object') {
+        console.error("Error details:", JSON.stringify(error, null, 2));
+      }
+      alert(`Failed to save set: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsDataLoading(false);
     }
@@ -544,7 +607,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Permanently decommission ${selectedIds.length} assets?`)) return;
+    if (!confirm(`🗑️ Delete ${selectedIds.length} questions permanently?\n\nक्या आप ${selectedIds.length} प्रश्नों को स्थायी रूप से हटाना चाहते हैं?\n\nThis action cannot be undone!`)) return;
     setIsDataLoading(true);
     try {
       await storageService.deleteQuestionsBulk(selectedIds);
@@ -572,22 +635,31 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
   const handleManualCreate = () => {
     const newQ: Question = {
       id: `q_${Date.now()}_manual`,
-      question_eng: 'New Question',
-      question_hin: 'नया प्रश्न',
-      option1_eng: 'Option A', option1_hin: 'विकल्प A',
-      option2_eng: 'Option B', option2_hin: 'विकल्प B',
-      option3_eng: 'Option C', option3_hin: 'विकल्प C',
-      option4_eng: 'Option D', option4_hin: 'विकल्प D',
+      question_eng: '',
+      question_hin: '',
+      option1_eng: '', option1_hin: '',
+      option2_eng: '', option2_hin: '',
+      option3_eng: '', option3_hin: '',
+      option4_eng: '', option4_hin: '',
       answer: '1',
-      solution_eng: 'Explanation...', solution_hin: 'व्याख्या...',
+      solution_eng: '', solution_hin: '',
       type: 'MCQ',
       difficulty: 'Medium',
-      subject: 'General Knowledge', // Default
-      chapter: 'General',
+      subject: 'Mathematics',
+      chapter: '',
+      topic: '',
       question_unique_id: `q_${Date.now()}_manual`,
       language: 'Bilingual',
       createdDate: new Date().toISOString(),
-      tags: []
+      tags: [],
+      // Additional CSV fields
+      exam: '',
+      section: '',
+      year: '',
+      date: new Date().toISOString().split('T')[0],
+      collection: '',
+      previous_of: '',
+      video: ''
     };
     setEditingQuestion(newQ);
     setIsEditingGenerated(false);
@@ -689,13 +761,14 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
       const hasOption5 = !!(q.option5_eng || q.option5_hin);
       const matchOpt = pickerOptionsFilter === 'All' || (pickerOptionsFilter === '5' && hasOption5) || (pickerOptionsFilter === '4' && !hasOption5);
 
-      const matchDate = pickerDate === 'All' || (q.date === pickerDate || q.createdDate?.startsWith(pickerDate));
+      const matchDate = dateFilter === 'All' || (q.date === dateFilter || q.createdDate?.startsWith(dateFilter));
       const matchSubject = pickerSubject === 'All' || q.subject === pickerSubject;
-      const matchTopic = pickerTopic === 'All' || q.topic === pickerTopic;
+      const matchExam = examFilter === 'All' || (q.exam || 'Unknown') === examFilter;
+      const matchYear = yearFilter === 'All' || (q.year || 'Unknown') === yearFilter;
 
-      return matchSearch && matchWizard && matchLang && matchOpt && matchDate && matchSubject && matchTopic;
+      return matchSearch && matchWizard && matchLang && matchOpt && matchDate && matchSubject && matchExam && matchYear;
     });
-  }, [library, filter, wizardFilters, setWizardStep, pickerLang, pickerOptionsFilter, pickerDate, pickerSubject, pickerTopic]);
+  }, [library, filter, wizardFilters, setWizardStep, pickerLang, pickerOptionsFilter, dateFilter, pickerSubject, examFilter, yearFilter]);
 
   const handleSmartSelect = (mode: 'all' | 'first' | 'random', count?: number) => {
     if (!editingSet) return;
@@ -795,14 +868,14 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
       {/* 2. DYNAMIC WORKSPACE HUB */}
       <div className="flex-1 flex flex-col min-w-0 h-full relative bg-[#F8FAFC]">
         {/* Command Bar (Compact: 56px) */}
-        <header className="h-14 bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 px-6 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-1 h-6 bg-primary rounded-full" />
+        <header className="h-10 bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 px-4 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-4 bg-primary rounded-full" />
             <div>
-              <h1 className="text-lg font-black text-slate-900 tracking-tight uppercase leading-none">
+              <h1 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">
                 {activeTab === 'library' ? 'Inventory' : activeTab === 'generate' ? 'AI Lab' : 'Studio'}
               </h1>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                 Protocol: {activeTab === 'library' ? 'Assets' : 'Synthesis'}
               </p>
             </div>
@@ -859,11 +932,11 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                 <div className="flex flex-col lg:flex-row items-stretch lg:items-center divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
                   {/* Search Asset Node */}
                   <div className="relative group flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={16} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={14} />
                     <input
                       type="text"
                       placeholder="Search inventory..."
-                      className="w-full h-11 pl-11 pr-4 bg-transparent outline-none text-[13px] font-medium text-slate-700 placeholder:text-slate-300"
+                      className="w-full h-9 pl-9 pr-3 bg-transparent outline-none text-[12px] font-medium text-slate-700 placeholder:text-slate-300"
                       value={filter}
                       onChange={(e) => setFilter(e.target.value)}
                     />
@@ -881,18 +954,18 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
 
                     <div className="w-px h-5 bg-slate-200 mx-1" />
 
-                    <button onClick={handleManualCreate} className="h-8 px-4 bg-slate-950 text-white rounded-md font-black uppercase tracking-wider hover:bg-primary transition-all flex items-center gap-2 text-[11px]">
-                      <Plus size={14} /> Initialize
+                    <button onClick={handleManualCreate} className="h-7 px-3 bg-slate-950 text-white rounded-md font-black uppercase tracking-wider hover:bg-primary transition-all flex items-center gap-1 text-[10px]">
+                      <Plus size={12} /> Init
                     </button>
 
-                    <button onClick={() => setShowBulkModal(true)} className="h-8 px-3 bg-white border border-slate-200 text-slate-600 rounded-md font-black uppercase tracking-wider hover:border-primary/30 transition-all flex items-center gap-2 text-[11px]">
-                      <Upload size={14} />
+                    <button onClick={() => setShowBulkModal(true)} className="h-7 px-2 bg-white border border-slate-200 text-slate-600 rounded-md font-black uppercase tracking-wider hover:border-primary/30 transition-all flex items-center gap-1 text-[10px]">
+                      <Upload size={12} />
                     </button>
                   </div>
                 </div>
               </div>
               {/* Filters Matrix (Compact) */}
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 mt-3">
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 mt-3">
                 {[
                   { val: languageFilter, set: setLanguageFilter, label: 'Syntax', options: LANGUAGES },
                   { val: difficultyFilter, set: setDifficultyFilter, label: 'Quality', options: ['Easy', 'Medium', 'Hard', 'Expert'] },
@@ -901,14 +974,14 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                 ].map((f, i) => (
                   <div key={i} className="relative shrink-0">
                     <select
-                      className="h-9 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-md px-3 text-[11px] font-bold uppercase tracking-tight text-slate-600 appearance-none cursor-pointer outline-none min-w-[130px] pr-8 transition-all"
+                      className="h-8 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-md px-2 text-[10px] font-bold uppercase tracking-tight text-slate-600 appearance-none cursor-pointer outline-none min-w-[120px] pr-6 transition-all"
                       value={f.val}
                       onChange={(e) => f.set(e.target.value)}
                     >
                       <option value="All">{f.label}: Global</option>
                       {f.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                     </select>
-                    <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    <ChevronDown size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
                 ))}
                 <button onClick={refreshLibrary} className="h-9 w-9 shrink-0 rounded-md border border-slate-200 text-slate-400 hover:text-primary hover:border-primary transition-all flex items-center justify-center">
@@ -918,30 +991,39 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
 
 
               {selectedIds.length > 0 && (
-                <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 flex flex-col gap-3 animate-in slide-in-from-top-4 duration-500">
+                <div className="bg-gradient-to-r from-red-50 to-primary/5 p-4 rounded-xl border border-red-200 flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 shadow-lg">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-primary text-white rounded-md flex items-center justify-center shadow-lg">
-                        <Layers size={16} />
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-red-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30">
+                        <Trash2 size={24} />
                       </div>
                       <div>
-                        <h4 className="text-[12px] font-black text-primary uppercase tracking-tight">{selectedIds.length} Assets Staged</h4>
-                        <p className="text-[9px] font-bold text-primary/60 uppercase tracking-widest leading-none">Batch Operational Matrix</p>
+                        <h4 className="text-lg font-black text-red-600 uppercase tracking-tight">{selectedIds.length} Questions Selected</h4>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none mt-1">{selectedIds.length} प्रश्न चुने गए • Bulk Actions Ready</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setSelectedIds([])}
+                        className="h-10 px-4 bg-white border border-slate-200 text-slate-500 rounded-lg text-[11px] font-bold uppercase transition-all hover:bg-slate-50 flex items-center gap-2"
+                      >
+                        <X size={14} />
+                        Clear Selection
+                      </button>
                       <button
                         onClick={() => setShowBulkEdit(!showBulkEdit)}
-                        className={`h-8 px-4 rounded-md text-[11px] font-bold cursor-pointer transition-all ${showBulkEdit ? 'bg-primary text-white shadow-sm' : 'bg-white border border-primary/20 text-primary hover:bg-primary/5'}`}
+                        className={`h-10 px-5 rounded-lg text-[11px] font-black uppercase cursor-pointer transition-all flex items-center gap-2 ${showBulkEdit ? 'bg-primary text-white shadow-md' : 'bg-white border border-primary/30 text-primary hover:bg-primary/5'}`}
                       >
-                        {showBulkEdit ? 'Lock Logic' : 'Edit Logic'}
+                        <Edit3 size={14} />
+                        {showBulkEdit ? 'Close Edit' : 'Bulk Edit'}
                       </button>
                       <button
                         onClick={handleBulkDelete}
-                        className="h-8 px-4 bg-error/10 text-error rounded-md text-[11px] font-bold uppercase transition-all hover:bg-error hover:text-white"
+                        className="h-10 px-6 bg-red-500 text-white rounded-lg text-[12px] font-black uppercase transition-all hover:bg-red-600 hover:shadow-lg hover:shadow-red-500/30 flex items-center gap-2 shadow-md"
                       >
-                        Purge
+                        <Trash2 size={16} />
+                        Delete {selectedIds.length} Questions
                       </button>
                     </div>
                   </div>
@@ -985,8 +1067,8 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                       {/* Selection Vector */}
                       <div className={`w-3 group-hover:w-4 transition-all duration-500 ${q.subject === 'Mathematics' ? 'bg-primary' : q.subject === 'Science' ? 'bg-success' : q.subject === 'Current Affairs' ? 'bg-error' : 'bg-slate-200'}`} />
 
-                      <div className="flex-1 p-10 md:p-14">
-                        <div className="p-4 flex flex-col h-full">
+                      <div className="flex-1 p-4 md:p-6">
+                        <div className="p-2 flex flex-col h-full">
                           {/* Selection & Meta Header */}
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
@@ -999,13 +1081,19 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                               </div>
                             </div>
 
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={(e) => { e.stopPropagation(); setReportQuestion(q); }} className="w-7 h-7 rounded-md bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-error/5 hover:text-error hover:border-error/20 transition-all" title="Audit"><AlertCircle size={14} /></button>
-                              <button onClick={(e) => { e.stopPropagation(); setEditingQuestion(q); setIsEditingGenerated(false); }} className="w-7 h-7 rounded-md bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-all" title="Edit"><Edit3 size={14} /></button>
+                            <div className="flex gap-1.5">
+                              <button onClick={(e) => { e.stopPropagation(); setReportQuestion(q); }} className="w-7 h-7 rounded-md bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-warning/10 hover:text-warning hover:border-warning/30 transition-all" title="Report Issue"><AlertCircle size={14} /></button>
+                              <button onClick={(e) => { e.stopPropagation(); setEditingQuestion(q); setIsEditingGenerated(false); }} className="w-7 h-7 rounded-md bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all" title="Edit Question"><Edit3 size={14} /></button>
                               <button
-                                onClick={async (e) => { e.stopPropagation(); if (confirm("Terminate Asset?")) { await storageService.deleteQuestion(q.id); refreshLibrary(); } }}
-                                className="w-7 h-7 rounded-md bg-white border border-slate-200 text-slate-400 flex items-center justify-center hover:bg-error hover:text-white transition-all"
-                                title="Delete"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (confirm("🗑️ Delete this question permanently?\n\nइस प्रश्न को स्थायी रूप से हटाएं?")) {
+                                    await storageService.deleteQuestion(q.id);
+                                    refreshLibrary();
+                                  }
+                                }}
+                                className="w-7 h-7 rounded-md bg-red-50 border border-red-200 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white hover:border-red-500 transition-all"
+                                title="Delete Question"
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -1194,12 +1282,82 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Topic Explorer</label>
-                        <p className="text-[11px] font-bold text-slate-500">Select a high-relevance domain for synthesis</p>
+                        <p className="text-[11px] font-bold text-slate-500">Select or create topics for synthesis</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-bold text-slate-400">
+                          {customTopics.length} Custom • {suggestedTopics.length} AI Suggested
+                        </span>
+                        <button
+                          onClick={() => setShowTopicModal(true)}
+                          className="h-8 px-3 bg-primary text-white rounded-md text-[10px] font-black uppercase tracking-wider hover:bg-primary/90 transition-all flex items-center gap-1.5"
+                        >
+                          <Plus size={14} /> New Topic
+                        </button>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 h-[300px] overflow-y-auto no-scrollbar mask-fade-bottom">
-                      {suggestedTopics.map(t => (
+                    {/* Add New Topic Inline */}
+                    <div className="flex gap-2 mb-4">
+                      <input
+                        type="text"
+                        value={newTopicInput}
+                        onChange={(e) => setNewTopicInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddTopic()}
+                        placeholder="Type new topic name and press Enter..."
+                        className="flex-1 h-10 px-4 border border-slate-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
+                      />
+                      <button
+                        onClick={handleAddTopic}
+                        disabled={!newTopicInput.trim()}
+                        className="h-10 px-4 bg-slate-900 text-white rounded-md text-[10px] font-black uppercase tracking-wider hover:bg-primary transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Plus size={14} /> Add
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 h-[280px] overflow-y-auto no-scrollbar mask-fade-bottom">
+                      {/* Custom Topics First - Editable */}
+                      {customTopics.map((t, index) => (
+                        <div
+                          key={`custom-${t}-${index}`}
+                          className={`p-3 rounded-md text-left border transition-all relative group ${genParams.topic === t ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 text-slate-600 hover:border-amber-300'}`}
+                        >
+                          {/* Edit/Delete buttons */}
+                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleEditTopic(index); }}
+                              className="w-6 h-6 bg-white border border-slate-200 rounded flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all"
+                              title="Edit Topic"
+                            >
+                              <Edit3 size={12} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteTopic(index); }}
+                              className="w-6 h-6 bg-white border border-red-200 rounded flex items-center justify-center text-red-400 hover:bg-red-500 hover:text-white transition-all"
+                              title="Delete Topic"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => setGenParams({ ...genParams, topic: t })}
+                            className="w-full text-left"
+                          >
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <div className={`w-6 h-6 rounded flex items-center justify-center transition-all ${genParams.topic === t ? 'bg-primary text-white' : 'bg-amber-100 text-amber-500'}`}>
+                                <Star size={12} />
+                              </div>
+                              <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Custom</span>
+                            </div>
+                            <span className="text-[11px] font-bold leading-tight tracking-tight uppercase line-clamp-2">{t}</span>
+                          </button>
+                        </div>
+                      ))}
+
+                      {/* AI Suggested Topics */}
+                      {suggestedTopics.filter(t => !customTopics.includes(t)).map(t => (
                         <button
                           key={t}
                           onClick={() => setGenParams({ ...genParams, topic: t })}
@@ -1209,7 +1367,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                             <div className={`w-6 h-6 rounded flex items-center justify-center transition-all ${genParams.topic === t ? 'bg-primary text-white' : 'bg-white text-slate-300'}`}>
                               <Hash size={12} />
                             </div>
-                            <span className="text-[10px] font-black text-primary/40 uppercase tracking-widest">Selected</span>
+                            <span className="text-[10px] font-black text-primary/40 uppercase tracking-widest">AI</span>
                           </div>
                           <span className="text-[11px] font-bold leading-tight tracking-tight uppercase line-clamp-2">{t}</span>
                         </button>
@@ -1538,150 +1696,189 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
               {setWizardStep === 'questions' && (
                 <div className="flex-1 flex flex-col min-h-0 bg-slate-100/50">
                   {/* ADVANCED ORCHESTRATION BAR */}
-                  <div className="shrink-0 bg-white border-b border-slate-100 px-12 py-6 z-20 shadow-sm">
-                    <div className="max-w-[1720px] mx-auto flex flex-col xl:flex-row items-center gap-8">
-                      {/* High-Performance Search */}
-                      {/* Orchestration Nexus (Header + Controls) */}
-                      <div className="shrink-0 bg-white border-b border-slate-200 p-3 z-20 shadow-sm relative">
-                        <div className="max-w-full mx-auto flex flex-col lg:flex-row items-center justify-between gap-3">
-                          <div className="relative group flex-1 w-full max-w-md">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors" size={14} />
-                            <input
-                              type="text"
-                              placeholder="Search filtered assets..."
-                              className="w-full h-9 pl-10 pr-4 bg-slate-50 border border-slate-200 focus:border-primary/30 rounded-md outline-none text-[13px] font-bold text-slate-700 transition-all"
-                              value={filter}
-                              onChange={e => setFilter(e.target.value)}
-                            />
-                          </div>
+                  {/* UNIFIED COMMAND DECK */}
+                  <div className="shrink-0 z-20 bg-white border-b border-slate-200 shadow-sm sticky top-0">
+                    {/* Row 1: Discovery & View Configuration */}
+                    <div className="px-6 py-3 border-b border-slate-100 flex items-center justify-between gap-4">
+                      {/* Search Module */}
+                      {/* Search & Filter Modules */}
+                      <div className="flex items-center gap-3 w-full max-w-[65%]">
+                        <div className="relative group flex-1">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={14} />
+                          <input
+                            type="text"
+                            placeholder="Type to search..."
+                            className="w-full h-8 pl-9 pr-3 bg-slate-50 border border-slate-200 focus:border-primary/50 focus:bg-white rounded-md outline-none text-xs font-bold text-slate-700 transition-all placeholder:text-slate-400"
+                            value={filter}
+                            onChange={e => setFilter(e.target.value)}
+                          />
+                        </div>
 
-                          <div className="flex flex-wrap items-center gap-2">
-                            {/* Syntactic Selection */}
-                            <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-200 rounded-md">
-                              {(['Both', 'Hindi', 'English'] as const).map(l => (
-                                <button
-                                  key={l}
-                                  onClick={() => setPickerLang(l)}
-                                  className={`px-3 py-1 text-[9px] font-black uppercase rounded transition-all ${pickerLang === l ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                  {l === 'Both' ? 'Bilingual' : l}
-                                </button>
-                              ))}
-                            </div>
+                        {/* Domain Filter */}
+                        <div className="relative shrink-0">
+                          <select
+                            value={subjectFilterState}
+                            onChange={(e) => setSubjectFilterState(e.target.value)}
+                            className="h-8 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-md text-[10px] font-bold uppercase tracking-wide text-slate-600 outline-none focus:border-primary/50 appearance-none cursor-pointer min-w-[130px]"
+                          >
+                            <option value="All">All Domains</option>
+                            {uniqueSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                          <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
 
-                            <div className="flex items-center gap-1 p-1 bg-slate-100 border border-slate-200 rounded-md">
-                              {(['All', '4', '5'] as const).map(o => (
-                                <button
-                                  key={o}
-                                  onClick={() => setPickerOptionsFilter(o)}
-                                  className={`px-3 py-1 text-[9px] font-black uppercase rounded transition-all ${pickerOptionsFilter === o ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                  {o === 'All' ? 'All Formats' : `${o} Options`}
-                                </button>
-                              ))}
-                            </div>
+                        {/* Exam Filter */}
+                        <div className="relative shrink-0">
+                          <select
+                            value={examFilter}
+                            onChange={(e) => setExamFilter(e.target.value)}
+                            className="h-8 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-md text-[10px] font-bold uppercase tracking-wide text-slate-600 outline-none focus:border-primary/50 appearance-none cursor-pointer min-w-[130px]"
+                          >
+                            <option value="All">All Exams</option>
+                            {uniqueExams.map(e => <option key={e} value={e}>{e}</option>)}
+                          </select>
+                          <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
 
-                            {/* Architecture View Toggles */}
-                            <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">
-                              {[
-                                { id: 'List', icon: List, label: 'List' },
-                                { id: 'Grid', icon: Layers, label: 'Grid' },
-                                { id: 'Single', icon: Presentation, label: 'Theater' }
-                              ].map((mode) => (
-                                <button
-                                  key={mode.id}
-                                  onClick={() => setPickerView(mode.id as any)}
-                                  className={`flex items-center gap-2 px-3 py-1 rounded transition-all ${pickerView === mode.id ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                  <mode.icon size={12} />
-                                  <span className="text-[9px] font-black uppercase tracking-wider">{mode.label}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
+                        {/* Year Filter */}
+                        <div className="relative shrink-0">
+                          <select
+                            value={yearFilter}
+                            onChange={(e) => setYearFilter(e.target.value)}
+                            className="h-8 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-md text-[10px] font-bold uppercase tracking-wide text-slate-600 outline-none focus:border-primary/50 appearance-none cursor-pointer min-w-[100px]"
+                          >
+                            <option value="All">Year</option>
+                            {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
+                          </select>
+                          <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
+
+                        {/* Date Filter */}
+                        <div className="relative shrink-0">
+                          <select
+                            value={dateFilter}
+                            onChange={(e) => setDateFilter(e.target.value)}
+                            className="h-8 pl-3 pr-8 bg-slate-50 border border-slate-200 rounded-md text-[10px] font-bold uppercase tracking-wide text-slate-600 outline-none focus:border-primary/50 appearance-none cursor-pointer min-w-[110px]"
+                          >
+                            <option value="All">Date</option>
+                            {uniqueDates.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                          <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                         </div>
                       </div>
 
-                      {/* DYNAMIC SELECTION DOCK (Batch Actions) */}
-                      <div className="shrink-0 bg-slate-50 p-3 border-b border-slate-200 z-10">
-                        <div className="max-w-full mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-                          <div className="flex items-center gap-6">
-                            <div className="flex flex-col">
-                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Saturation</span>
-                              <div className="flex items-baseline gap-1.5 text-primary">
-                                <span className="text-xl font-black leading-none">{editingSet.questionIds?.length || 0}</span>
-                                <span className="text-[9px] font-bold text-slate-400 uppercase">/ {targetCount} Target</span>
-                              </div>
+                      {/* View & Filter Controls */}
+                      <div className="flex items-center gap-3">
+                        {/* Language Toggle */}
+                        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                          {(['Both', 'Hindi', 'English'] as const).map(l => (
+                            <button
+                              key={l}
+                              onClick={() => setPickerLang(l)}
+                              className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all ${pickerLang === l ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                              {l === 'Both' ? 'Bi' : l.slice(0, 2)}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="w-px h-5 bg-slate-200" />
+
+                        {/* Option Toggle */}
+                        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                          {(['All', '4', '5'] as const).map(o => (
+                            <button
+                              key={o}
+                              onClick={() => setPickerOptionsFilter(o)}
+                              className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide transition-all ${pickerOptionsFilter === o ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                              {o === 'All' ? 'All' : o} Opts
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="w-px h-5 bg-slate-200" />
+
+                        {/* View Toggle */}
+                        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                          {[
+                            { id: 'List', icon: List },
+                            { id: 'Grid', icon: Layers },
+                            { id: 'Single', icon: Presentation }
+                          ].map((mode) => (
+                            <button
+                              key={mode.id}
+                              onClick={() => setPickerView(mode.id as any)}
+                              className={`p-1.5 rounded-md transition-all ${pickerView === mode.id ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                              title={mode.id}
+                            >
+                              <mode.icon size={14} />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Row 2: Operational Matrix */}
+                    {/* Row 2: Operational Matrix */}
+                    <div className="px-6 py-2.5 bg-slate-50/80 flex items-center justify-between gap-4 border-t border-slate-100">
+                      <div className="flex items-center gap-6">
+                        {/* Progress Meter */}
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <span className="text-[8px] font-bold text-slate-400 uppercase block leading-none mb-0.5">Progress</span>
+                            <div className="flex items-baseline justify-end gap-1">
+                              <span className="text-base font-black text-primary leading-none">{editingSet.questionIds?.length || 0}</span>
+                              <span className="text-[9px] font-bold text-slate-400">/ {targetCount}</span>
                             </div>
-
-                            <div className="h-6 w-px bg-slate-200" />
-
-                            <div className="space-y-1">
-                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Calibration</span>
-                              <div className="flex items-center gap-1.5">
-                                {(['50', '100', '150', '200'] as const).map(t => (
-                                  <button
-                                    key={t}
-                                    onClick={() => setTargetCount(parseInt(t))}
-                                    className={`h-6 px-2 text-[8px] font-black rounded border transition-all ${targetCount === parseInt(t) ? 'bg-primary border-primary text-white shadow-sm' : 'bg-white border-slate-200 text-slate-400 hover:text-primary'}`}
-                                  >
-                                    {t} Assets
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
-                            <div className="h-6 w-px bg-slate-200" />
-
-                            <div className="flex items-center gap-2">
+                          </div>
+                          {/* Target Select */}
+                          <div className="flex bg-white border border-slate-200 rounded-md overflow-hidden shadow-sm">
+                            {(['50', '100', '200'] as const).map(t => (
                               <button
-                                onClick={() => handleSmartSelect('all')}
-                                className="h-8 px-4 bg-slate-900 text-white rounded-md text-[9px] font-black uppercase tracking-wider hover:bg-primary transition-all flex items-center gap-2 shadow-sm"
+                                key={t}
+                                onClick={() => setTargetCount(parseInt(t))}
+                                className={`px-2 py-0.5 text-[9px] font-bold border-r last:border-r-0 border-slate-100 ${targetCount === parseInt(t) ? 'bg-slate-50 text-primary' : 'text-slate-400 hover:bg-slate-50'}`}
                               >
-                                <CheckCircle size={12} /> Batch ({setWizardFilteredQuestions.length})
+                                {t}
                               </button>
-                              <button
-                                onClick={() => handleSmartSelect('first', 50)}
-                                className="h-12 px-6 bg-white border border-slate-100 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all"
-                              >
-                                First Vector (50)
-                              </button>
-                              <button
-                                onClick={() => handleSmartSelect('random', 50)}
-                                className="h-12 px-6 bg-white border border-slate-100 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:border-primary hover:text-primary transition-all flex items-center gap-3"
-                              >
-                                <RefreshCw size={16} /> Random Seed (50)
-                              </button>
-                              <button
-                                onClick={() => setEditingSet({ ...editingSet, questionIds: [] })}
-                                className="px-6 text-[10px] font-black uppercase tracking-widest text-error hover:text-error/80 transition-all"
-                              >
-                                Purge Workspace
-                              </button>
-                            </div>
+                            ))}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                          <button
-                            onClick={() => setSetWizardStep('source')}
-                            className="px-8 py-5 rounded-[24px] border-2 border-slate-100 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all font-sans"
-                          >
-                            Source Configuration
+                        <div className="w-px h-6 bg-slate-200" />
+
+                        {/* Quick Actions */}
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleSmartSelect('all')} className="h-7 px-3 bg-white border border-slate-200 hover:border-primary/50 text-slate-600 rounded-md text-[9px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm">
+                            <CheckCircle size={10} className="text-primary" /> Batch
                           </button>
-                          <button
-                            onClick={handleSaveSet}
-                            className="px-12 py-5.5 rounded-[24px] bg-primary text-white text-[12px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-primary/30 hover:scale-[1.05] active:scale-95 transition-all flex items-center gap-4"
-                          >
-                            Seal & Save Set <Check size={20} />
+                          <button onClick={() => handleSmartSelect('first', 50)} className="h-7 px-3 bg-white border border-slate-200 hover:border-primary/50 text-slate-600 rounded-md text-[9px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm">
+                            <ArrowDownCircle size={10} className="text-indigo-500" /> First 50
+                          </button>
+                          <button onClick={() => handleSmartSelect('random', 50)} className="h-7 px-3 bg-white border border-slate-200 hover:border-primary/50 text-slate-600 rounded-md text-[9px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm">
+                            <Sparkles size={10} className="text-accent-pink" /> AI Pick
+                          </button>
+                          <button onClick={() => setEditingSet({ ...editingSet, questionIds: [] })} className="h-7 w-7 bg-white border border-slate-200 text-error hover:bg-error hover:text-white rounded-md flex items-center justify-center transition-all shadow-sm" title="Purge">
+                            <Trash2 size={12} />
                           </button>
                         </div>
+                      </div>
+
+                      {/* Main Actions */}
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => setSetWizardStep('source')} className="h-8 px-4 rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100 text-[10px] font-black uppercase tracking-wider transition-all">
+                          Config
+                        </button>
+                        <button onClick={handleSaveSet} className="h-8 px-5 bg-slate-900 hover:bg-primary text-white rounded-md text-[10px] font-black uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-slate-900/10 transition-all">
+                          <Save size={12} /> Seal Set
+                        </button>
                       </div>
                     </div>
                   </div>
 
                   {/* HIGH-PRECISION CONTENT CANVAS */}
-                  <div className="flex-1 overflow-y-auto bg-[#FAFAFA] px-8 py-10 custom-scrollbar">
+                  <div className="flex-1 overflow-y-auto bg-[#FAFAFA] px-6 py-8 custom-scrollbar">
                     <div className="max-w-[1600px] mx-auto h-full">
                       {(() => {
                         const filtered = setWizardFilteredQuestions;
@@ -1700,75 +1897,77 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                           const q = filtered[singleViewIndex % filtered.length];
                           const isSelected = editingSet.questionIds?.includes(q.id);
                           return (
-                            <div className="h-full flex flex-col items-center justify-center max-w-4xl mx-auto space-y-6 animate-in zoom-in-95 duration-500 py-6">
-                              {/* Cinematic Theater Controller (Compact) */}
-                              <div className="flex items-center gap-6 w-full justify-between">
+                            <div className="min-h-full flex flex-col items-center justify-start max-w-4xl mx-auto space-y-4 animate-in zoom-in-95 duration-500 py-4 pb-20">
+                              {/* Compact Controller */}
+                              <div className="flex items-center gap-4 w-full justify-between">
                                 <button
                                   onClick={() => setSingleViewIndex(prev => (prev - 1 + filtered.length) % filtered.length)}
-                                  className="w-12 h-12 rounded-lg bg-white shadow-md flex items-center justify-center text-slate-400 hover:text-primary transition-all border border-slate-200 group"
+                                  className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-400 hover:text-primary transition-all border border-slate-200"
                                 >
-                                  <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+                                  <ArrowLeft size={16} />
                                 </button>
 
                                 <div className="text-center">
-                                  <div className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-md border border-white/10 mx-auto w-fit mb-2">
+                                  <div className="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded border border-white/10 mx-auto w-fit mb-1">
                                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-white">Focus: {singleViewIndex + 1} / {filtered.length}</span>
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-white">Focus: {singleViewIndex + 1} / {filtered.length}</span>
                                   </div>
-                                  <h4 className="text-xl font-black text-slate-900 tracking-tight uppercase leading-none">Theater Matrix</h4>
                                 </div>
 
                                 <button
                                   onClick={() => setSingleViewIndex(prev => (prev + 1) % filtered.length)}
-                                  className="w-12 h-12 rounded-lg bg-white shadow-md flex items-center justify-center text-slate-400 hover:text-primary transition-all border border-slate-200 group"
+                                  className="w-10 h-10 rounded-lg bg-white shadow-sm flex items-center justify-center text-slate-400 hover:text-primary transition-all border border-slate-200"
                                 >
-                                  <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                                  <ChevronRight size={16} />
                                 </button>
                               </div>
 
                               <div
                                 onClick={() => toggleSetQuestion(q.id)}
-                                className={`w-full bg-white rounded-lg border-2 p-10 shadow-xl transition-all cursor-pointer relative overflow-hidden group/theater ${isSelected ? 'border-primary shadow-primary/5 bg-primary/[0.01]' : 'border-slate-100 hover:border-primary/20 hover:shadow-2xl'}`}
+                                className={`w-full bg-white rounded-lg border p-6 shadow-md transition-all cursor-pointer relative overflow-hidden group/theater ${isSelected ? 'border-primary shadow-primary/5 bg-primary/[0.01]' : 'border-slate-100 hover:border-primary/20 hover:shadow-xl'}`}
                               >
                                 {isSelected && (
-                                  <div className="absolute top-0 right-0 bg-primary text-white px-6 py-2 rounded-bl-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-lg animate-in slide-in-from-top-2">
-                                    <CheckCircle size={14} /> ALIGNED
+                                  <div className="absolute top-0 right-0 bg-primary text-white px-4 py-1.5 rounded-bl-lg font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 shadow-sm animate-in slide-in-from-top-2">
+                                    <CheckCircle size={12} /> ALIGNED
                                   </div>
                                 )}
 
-                                <div className="space-y-8">
-                                  <div className="flex items-center gap-3">
-                                    <span className="bg-slate-950 text-white text-[9px] font-black px-4 py-1 rounded border border-white/10 uppercase tracking-widest">{q.subject}</span>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{q.exam || 'Archive'}</span>
-                                    <span className="ml-auto text-[10px] font-bold text-slate-300 uppercase tracking-wider">{q.date || 'Generic'}</span>
+                                <div className="space-y-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className="bg-slate-950 text-white text-[9px] font-black px-2 py-1 rounded border border-white/10 uppercase tracking-widest">{q.subject}</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{q.exam || 'Archive'}</span>
+                                    <span className="ml-auto text-[9px] font-bold text-slate-300 uppercase tracking-wider">{q.date || 'Generic'}</span>
                                   </div>
 
-                                  <div className="space-y-6">
+                                  <div className="space-y-3">
                                     {(pickerLang === 'Both' || pickerLang === 'Hindi') && q.question_hin && (
-                                      <p className="text-2xl font-black text-slate-900 leading-tight" dangerouslySetInnerHTML={{ __html: q.question_hin }} />
+                                      <p className="text-lg font-black text-slate-900 leading-tight" dangerouslySetInnerHTML={{ __html: q.question_hin }} />
                                     )}
                                     {(pickerLang === 'Both' || pickerLang === 'English') && q.question_eng && (
-                                      <p className={`${pickerLang === 'Both' ? 'text-lg font-bold text-slate-400 italic' : 'text-2xl font-black text-slate-900'} leading-snug`} dangerouslySetInnerHTML={{ __html: q.question_eng }} />
+                                      <p className={`${pickerLang === 'Both' ? 'text-sm font-bold text-slate-500 italic' : 'text-lg font-black text-slate-900'} leading-snug`} dangerouslySetInnerHTML={{ __html: q.question_eng }} />
                                     )}
                                   </div>
 
-                                  <div className="grid grid-cols-1 gap-3 pt-8 border-t border-slate-100 relative">
-                                    <div className="absolute -top-3 left-0 bg-white px-3 text-[9px] font-black text-slate-300 uppercase tracking-widest">Responses</div>
+                                  <div className="grid grid-cols-1 gap-2 pt-4 border-t border-slate-100 relative">
+                                    <div className="absolute -top-3 left-0 bg-white px-2 text-[8px] font-black text-slate-300 uppercase tracking-widest">Responses</div>
                                     {[1, 2, 3, 4, 5].map(i => {
                                       const optH = (q as any)[`option${i}_hin`];
                                       const optE = (q as any)[`option${i}_eng`];
                                       if (!optH && !optE) return null;
                                       const isAns = q.answer === i.toString();
+
+                                      if (pickerOptionsFilter !== 'All' && i > parseInt(pickerOptionsFilter)) return null;
+
                                       return (
-                                        <div key={i} className={`p-4 rounded-md border flex items-center gap-6 transition-all ${isAns ? 'bg-success/5 border-success/20 text-success' : 'bg-slate-50 border-transparent text-slate-400 opacity-60'}`}>
-                                          <div className={`w-10 h-10 rounded flex items-center justify-center text-lg font-black shadow-sm ${isAns ? 'bg-success text-white' : 'bg-white text-slate-300'}`}>
+                                        <div key={i} className={`px-4 py-3 rounded border flex items-center gap-4 transition-all ${isAns ? 'bg-success/5 border-success/20 text-success' : 'bg-slate-50 border-transparent text-slate-400 opacity-80'}`}>
+                                          <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-black shadow-sm ${isAns ? 'bg-success text-white' : 'bg-white text-slate-300'}`}>
                                             {String.fromCharCode(64 + i)}
                                           </div>
-                                          <div className="flex-1 space-y-1">
-                                            {(pickerLang === 'Both' || pickerLang === 'Hindi') && optH && <div className="font-bold text-lg text-slate-800" dangerouslySetInnerHTML={{ __html: optH }} />}
-                                            {(pickerLang === 'Both' || pickerLang === 'English') && optE && <div className="text-sm font-medium opacity-60 italic" dangerouslySetInnerHTML={{ __html: optE }} />}
+                                          <div className="flex-1 space-y-0.5">
+                                            {(pickerLang === 'Both' || pickerLang === 'Hindi') && optH && <div className="font-bold text-sm text-slate-800" dangerouslySetInnerHTML={{ __html: optH }} />}
+                                            {(pickerLang === 'Both' || pickerLang === 'English') && optE && <div className="text-xs font-medium opacity-70 italic" dangerouslySetInnerHTML={{ __html: optE }} />}
                                           </div>
-                                          {isAns && <Check size={20} className="text-success" />}
+                                          {isAns && <Check size={14} className="text-success" />}
                                         </div>
                                       )
                                     })}
@@ -2041,10 +2240,10 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
-                          { label: 'Academic Domain', value: editingQuestion.subject, options: SUBJECTS, key: 'subject' },
+                          { label: 'Academic Domain (Subject)', value: editingQuestion.subject, options: SUBJECTS, key: 'subject' },
                           { label: 'Evaluation Type', value: editingQuestion.type, options: ['MCQ', 'TrueFalse', 'ShortAnswer', 'FillBlanks'], key: 'type' },
                           { label: 'Complexity Index', value: editingQuestion.difficulty, options: ['Easy', 'Medium', 'Hard', 'Expert'], key: 'difficulty' },
-                          { label: 'Syntactic Framework', value: editingQuestion.language, options: LANGUAGES, key: 'language' }
+                          { label: 'Language', value: editingQuestion.language, options: LANGUAGES, key: 'language' }
                         ].map(field => (
                           <div key={field.label} className="space-y-1.5">
                             <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{field.label}</label>
@@ -2061,33 +2260,76 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                           </div>
                         ))}
 
+                        {/* Dropdown-enabled fields with existing value suggestions */}
                         {[
-                          { label: 'Chapter / Topic', value: editingQuestion.chapter || '', placeholder: 'e.g., Algebra', key: 'chapter' },
-                          { label: 'Exam Focus', value: editingQuestion.exam || '', placeholder: 'e.g., SSC CGL', key: 'exam' },
-                          { label: 'Year', value: editingQuestion.year || '', placeholder: 'e.g., 2024', key: 'year' },
-                          { label: 'Sync Date', value: editingQuestion.date || '', type: 'date', key: 'date' }
+                          { label: 'Chapter', value: editingQuestion.chapter || '', placeholder: 'Select or type chapter...', key: 'chapter', options: uniqueChapters },
+                          { label: 'Topic', value: editingQuestion.topic || '', placeholder: 'Select or type topic...', key: 'topic', options: uniqueTopics },
+                          { label: 'Exam', value: editingQuestion.exam || '', placeholder: 'Select or type exam...', key: 'exam', options: uniqueExams },
+                          { label: 'Section/Shift', value: editingQuestion.section || '', placeholder: 'Select or type section...', key: 'section', options: uniqueSections },
+                          { label: 'Year', value: editingQuestion.year || '', placeholder: 'Select or type year...', key: 'year', options: uniqueYears },
+                          { label: 'Collection', value: editingQuestion.collection || '', placeholder: 'Select or type collection...', key: 'collection', options: uniqueCollections },
+                          { label: 'Previous Of', value: editingQuestion.previous_of || '', placeholder: 'Select or type source...', key: 'previous_of', options: uniquePreviousOf }
                         ].map(field => (
                           <div key={field.label} className="space-y-1.5">
-                            <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{field.label}</label>
-                            <input
-                              type={field.type || 'text'}
-                              className="w-full h-10 bg-white/5 border border-white/10 rounded-md px-3 font-bold text-[11px] text-white focus:bg-white/10 focus:border-primary transition-all outline-none placeholder:text-white/20"
-                              value={field.value}
-                              onChange={e => setEditingQuestion({ ...editingQuestion, [field.key]: e.target.value })}
-                              placeholder={field.placeholder}
-                            />
+                            <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                              {field.label}
+                              {field.options.length > 0 && (
+                                <span className="text-primary/60 text-[7px]">({field.options.length} available)</span>
+                              )}
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                list={`datalist-${field.key}`}
+                                className="w-full h-10 bg-white/5 border border-white/10 rounded-md px-3 pr-8 font-bold text-[11px] text-white focus:bg-white/10 focus:border-primary transition-all outline-none placeholder:text-white/20"
+                                value={field.value}
+                                onChange={e => setEditingQuestion({ ...editingQuestion, [field.key]: e.target.value })}
+                                placeholder={field.placeholder}
+                              />
+                              <datalist id={`datalist-${field.key}`}>
+                                {field.options.map(opt => (
+                                  <option key={opt} value={opt} />
+                                ))}
+                              </datalist>
+                              {field.options.length > 0 && (
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" size={12} />
+                              )}
+                            </div>
                           </div>
                         ))}
+
+                        {/* Date field */}
+                        <div className="space-y-1.5">
+                          <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Date</label>
+                          <input
+                            type="date"
+                            className="w-full h-10 bg-white/5 border border-white/10 rounded-md px-3 font-bold text-[11px] text-white focus:bg-white/10 focus:border-primary transition-all outline-none"
+                            value={editingQuestion.date || ''}
+                            onChange={e => setEditingQuestion({ ...editingQuestion, date: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Video URL */}
+                      <div className="mt-4 space-y-1.5">
+                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Video URL (Solution Video Link)</label>
+                        <input
+                          type="url"
+                          className="w-full h-10 bg-white/5 border border-white/10 rounded-md px-4 font-bold text-[11px] text-white focus:bg-white/10 focus:border-primary transition-all outline-none placeholder:text-white/20"
+                          value={editingQuestion.video || ''}
+                          onChange={e => setEditingQuestion({ ...editingQuestion, video: e.target.value })}
+                          placeholder="https://youtube.com/watch?v=..."
+                        />
                       </div>
 
                       <div className="mt-4 space-y-1.5">
-                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Tags (Semantic Indicators)</label>
+                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Tags (comma separated)</label>
                         <input
                           type="text"
                           className="w-full h-10 bg-white/5 border border-white/10 rounded-md px-4 font-bold text-[11px] text-white focus:bg-white/10 focus:border-primary transition-all outline-none placeholder:text-white/20"
                           value={editingQuestion.tags?.join(', ') || ''}
                           onChange={e => setEditingQuestion({ ...editingQuestion, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
-                          placeholder="Tags separated by commas... (e.g., critical, geometry, 2024)"
+                          placeholder="Tags separated by commas... (e.g., PYQ, Geometry, 2024)"
                         />
                       </div>
                     </div>
@@ -2235,6 +2477,60 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
           </div>
         )
       }
+
+      {/* Edit Topic Modal */}
+      {editingTopicIndex !== null && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-300">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-md flex items-center justify-center">
+                  <Edit3 size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Edit Topic</h3>
+                  <p className="text-xs text-slate-500">Modify your custom topic</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setEditingTopicIndex(null); setEditingTopicValue(''); }}
+                className="w-8 h-8 rounded-md bg-slate-100 text-slate-400 hover:bg-error hover:text-white transition-all flex items-center justify-center"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <label className="block text-sm font-bold text-slate-600 mb-2">Topic Name</label>
+              <input
+                type="text"
+                value={editingTopicValue}
+                onChange={(e) => setEditingTopicValue(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveTopicEdit()}
+                className="w-full h-12 px-4 border border-slate-200 rounded-md text-sm font-medium focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                placeholder="Enter topic name..."
+                autoFocus
+              />
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+              <button
+                onClick={() => { setEditingTopicIndex(null); setEditingTopicValue(''); }}
+                className="h-10 px-4 text-sm font-bold text-slate-500 hover:text-slate-700 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveTopicEdit}
+                disabled={!editingTopicValue.trim()}
+                className="h-10 px-6 bg-primary text-white rounded-md text-sm font-bold hover:bg-primary/90 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save size={16} /> Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };

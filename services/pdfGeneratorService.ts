@@ -49,12 +49,16 @@ export interface PDFConfig {
     headerExam: string;
     showPageBorder: boolean;
     show5thOption: boolean;
+    questionGap: number;
+    questionOptionGap: number;
 }
 
 const DEFAULT_PDF_CONFIG: PDFConfig = {
     fontSize: 10,
     spacing: 6,
     optionSpacing: 4,
+    questionGap: 24,
+    questionOptionGap: 8,
     answerBold: false,
     showWatermark: true,
     showRelevantQuestions: false,
@@ -178,20 +182,47 @@ class PDFGeneratorService {
                 yOffset += (hinLines.length * 6) + 3; // Extra space for Hindi junk
             }
 
-            // Tag below question (Right Aligned)
+
+            // Intelligent Tags below question (Right Aligned)
             if (this.config.previousYearTag) {
                 yOffset += 1;
-                const tagName = `${set.name.split(' ')[0]} Teacher Expected`.toUpperCase();
-                pdf.setFontSize(7);
-                pdf.setFillColor(30, 41, 59);
-                const tagWidth = pdf.getTextWidth(tagName) + 6;
-                // Move to right side of current column
-                const tagX = xPos + colWidth - tagWidth - 2;
-                pdf.rect(tagX, yOffset, tagWidth, 5, 'F');
-                pdf.setTextColor(255, 255, 255);
-                pdf.setFont('helvetica', 'bold');
-                pdf.text(tagName, tagX + 3, yOffset + 3.8); // Fine-tuned vertical centering
-                yOffset += 8;
+                let tagText = '';
+                let tagColor: [number, number, number] = [30, 41, 59]; // Default dark
+
+                // Current Affairs - Show Date (Red)
+                if (q.subject === 'Current Affairs' && q.date) {
+                    const dateObj = new Date(q.date);
+                    tagText = `${dateObj.getDate()} ${dateObj.toLocaleString('en', { month: 'short' })}, ${dateObj.getFullYear()}`;
+                    tagColor = [220, 38, 38]; // Red
+                }
+                // AI Generated - Show Topic (Purple)
+                else if ((q.tags?.includes('AI-Generated') || q.id?.includes('q_')) && q.topic) {
+                    tagText = `AI: ${q.topic.toUpperCase()}`;
+                    tagColor = [147, 51, 234]; // Purple
+                }
+                // Previous Year - Show Exam + Year (Dark)
+                else if (q.exam && q.year) {
+                    tagText = `${q.exam}${q.section ? ' | ' + q.section : ''} | ${q.year}`.toUpperCase();
+                    tagColor = [30, 41, 59]; // Dark
+                }
+                // General Tags (Gray)
+                else if (q.tags && q.tags.length > 0) {
+                    tagText = q.tags.slice(0, 2).join(', ').toUpperCase();
+                    tagColor = [71, 85, 105]; // Gray
+                }
+
+                if (tagText) {
+                    pdf.setFontSize(7);
+                    pdf.setFillColor(tagColor[0], tagColor[1], tagColor[2]);
+                    const tagWidth = pdf.getTextWidth(tagText) + 6;
+                    // Right align within column
+                    const tagX = xPos + colWidth - tagWidth - 2;
+                    pdf.rect(tagX, yOffset, tagWidth, 5, 'F');
+                    pdf.setTextColor(255, 255, 255);
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.text(tagText, tagX + 3, yOffset + 3.8);
+                    yOffset += 8;
+                }
             } else {
                 yOffset += 3;
             }
@@ -448,14 +479,26 @@ class PDFGeneratorService {
         // High Quality WYSIWYG Capture
         try {
             const canvas = await html2canvas(element, {
-                scale: 2,
+                scale: 3, // Higher scale for better quality
                 useCORS: true,
                 logging: false,
+                backgroundColor: '#ffffff',
                 windowWidth: element.scrollWidth,
-                windowHeight: element.scrollHeight
+                windowHeight: element.scrollHeight,
+                allowTaint: true,
+                removeContainer: true,
+                imageTimeout: 0,
+                onclone: (clonedDoc) => {
+                    // Ensure all styles are properly applied in cloned document
+                    const clonedElement = clonedDoc.querySelector('[ref="previewRef"]');
+                    if (clonedElement) {
+                        (clonedElement as HTMLElement).style.transform = 'none';
+                    }
+                }
             });
 
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.85); // Higher quality for better rendering
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pageWidth = 210;
             const pageHeight = 297;
@@ -465,13 +508,19 @@ class PDFGeneratorService {
             let heightLeft = imgHeight;
             let position = 0;
 
-            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            // Add white background to first page
+            pdf.setFillColor(255, 255, 255);
+            pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST'); // FAST compression
             heightLeft -= pageHeight;
 
             while (heightLeft >= 0) {
                 position = heightLeft - imgHeight;
                 pdf.addPage();
-                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                // Add white background to additional pages
+                pdf.setFillColor(255, 255, 255);
+                pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
                 heightLeft -= pageHeight;
             }
 
