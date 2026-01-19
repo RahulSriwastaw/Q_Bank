@@ -8,7 +8,8 @@ import {
   BookOpen, CheckCircle, Sparkles, AlertCircle, Timer as TimerIcon, ExternalLink,
   Mic, MicOff, MessageSquare, Volume2, Languages, Clipboard, RefreshCw, Layers,
   PenTool, Eraser, MousePointer2, Grid, Palette, Undo, MonitorPlay,
-  Move, Type, Image as ImageIcon, Globe, ZoomIn, ZoomOut, Disc, Bookmark, Flag, Lock, Key, Presentation, Download, Save, Settings
+  Move, Type, Image as ImageIcon, Globe, ZoomIn, ZoomOut, Disc, Bookmark, Flag, Lock, Key, Presentation, Download, Save, Settings,
+  Square, Circle, Minus, Sliders, Palette as PaletteIcon, MousePointer, Hand
 } from 'lucide-react';
 import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 import { jsPDF } from 'jspdf';
@@ -20,7 +21,14 @@ interface TeacherViewProps {
 }
 
 type Point = { x: number, y: number };
-type DrawingPath = { points: Point[], color: string, width: number, type: 'pen' | 'highlighter' | 'eraser' | 'laser' };
+type DrawingPath = { 
+  points: Point[], 
+  color: string, 
+  width: number, 
+  opacity?: number,
+  type: 'pen' | 'highlighter' | 'eraser' | 'laser' | 'line' | 'rect' | 'circle' | 'text',
+  text?: string
+};
 
 function encode(bytes: Uint8Array) {
   let binary = '';
@@ -98,13 +106,18 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
   const [whiteboardMode, setWhiteboardMode] = useState(false);
 
   // Annotation State
-  const [tool, setTool] = useState<'cursor' | 'pen' | 'highlighter' | 'eraser' | 'laser'>('cursor');
+  const [tool, setTool] = useState<'cursor' | 'pen' | 'highlighter' | 'eraser' | 'laser' | 'line' | 'rect' | 'circle' | 'text'>('cursor');
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'draw' | 'insert' | 'measure'>('draw');
   const [strokeColor, setStrokeColor] = useState('#ef4444');
+  const [strokeWidth, setStrokeWidth] = useState(2);
+  const [opacity, setOpacity] = useState(1);
   const [showGrid, setShowGrid] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const tempCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [mousePos, setMousePos] = useState({ x: -100, y: -100 });
-  const isWriting = isDrawing && (tool === 'pen' || tool === 'highlighter' || tool === 'eraser');
+  const [dragStartPos, setDragStartPos] = useState<Point | null>(null);
+  const isWriting = isDrawing && (tool !== 'cursor' && tool !== 'laser');
 
   // Path-based Drawing State
   const [currentPaths, setCurrentPaths] = useState<DrawingPath[]>([]);
@@ -193,16 +206,22 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
   useEffect(() => {
     const handleResize = () => {
       if (canvasRef.current) {
-        // Resizing clears canvas, so we must redraw
-        canvasRef.current.width = window.innerWidth;
-        canvasRef.current.height = window.innerHeight;
+        const parent = canvasRef.current.parentElement;
+        if (parent) {
+          canvasRef.current.width = parent.clientWidth;
+          canvasRef.current.height = parent.clientHeight;
+        } else {
+          canvasRef.current.width = window.innerWidth;
+          canvasRef.current.height = window.innerHeight;
+        }
         redrawCanvas();
       }
     };
     window.addEventListener('resize', handleResize);
-    handleResize();
+    // Call after a small delay to ensure layout is computed
+    setTimeout(handleResize, 100);
     return () => window.removeEventListener('resize', handleResize);
-  }, [mode, currentPaths]); // Re-run when paths change to ensure redraw triggers correctly
+  }, [mode, currentPaths, activeSidebarTab]); // Re-run when sidebar changes
 
   const [containerSize, setContainerSize] = useState({ w: 900 });
   const [isResizing, setIsResizing] = useState(false);
@@ -351,27 +370,61 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
 
   // Canvas Logic - Path Based
   const renderPath = (ctx: CanvasRenderingContext2D, path: DrawingPath) => {
-    if (path.points.length < 2) return;
+    if (path.points.length < 1) return; // Allow single point for text
     ctx.beginPath();
-    ctx.moveTo(path.points[0].x, path.points[0].y);
-    for (let i = 1; i < path.points.length; i++) {
-      ctx.lineTo(path.points[i].x, path.points[i].y);
-    }
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
     if (path.type === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.lineWidth = 40;
+      ctx.lineWidth = path.width || 40;
       ctx.strokeStyle = 'rgba(0,0,0,1)';
     } else {
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = path.color;
-      ctx.lineWidth = path.type === 'highlighter' ? 20 : 3;
-      if (path.type === 'highlighter') ctx.globalAlpha = 0.4;
-      else ctx.globalAlpha = 1.0;
+      ctx.lineWidth = path.width || 3;
+      ctx.globalAlpha = path.opacity ?? (path.type === 'highlighter' ? 0.4 : 1.0);
+      if (path.type === 'highlighter') ctx.lineWidth = path.width || 20;
     }
-    ctx.stroke();
+
+    const start = path.points[0];
+    const end = path.points[path.points.length - 1];
+
+    switch (path.type) {
+      case 'line':
+        if (path.points.length < 2) return;
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+        break;
+      case 'rect':
+        if (path.points.length < 2) return;
+        ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
+        break;
+      case 'circle':
+        if (path.points.length < 2) return;
+        const radius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+        ctx.arc(start.x, start.y, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+        break;
+      case 'text':
+        if (path.text) {
+          ctx.font = `bold ${Math.max(12, path.width * 5)}px sans-serif`;
+          ctx.fillStyle = path.color;
+          ctx.globalAlpha = path.opacity ?? 1.0;
+          ctx.fillText(path.text, start.x, start.y);
+        }
+        break;
+      default: // pen, highlighter, eraser
+        if (path.points.length < 2) return;
+        ctx.moveTo(start.x, start.y);
+        for (let i = 1; i < path.points.length; i++) {
+          ctx.lineTo(path.points[i].x, path.points[i].y);
+        }
+        ctx.stroke();
+        break;
+    }
+
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1.0;
   };
@@ -406,11 +459,29 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
     const x = ('clientX' in e ? e.clientX : e.touches[0].clientX) - rect.left;
     const y = ('clientY' in e ? e.clientY : e.touches[0].clientY) - rect.top;
 
+    if (tool === 'text') {
+      const text = prompt("Enter text:");
+      if (text) {
+        const newPath: DrawingPath = {
+          points: [{ x, y }],
+          color: strokeColor,
+          width: strokeWidth,
+          type: 'text',
+          text,
+          opacity
+        };
+        setCurrentPaths(prev => [...prev, newPath]);
+      }
+      setIsDrawing(false);
+      return;
+    }
+
     setCurrentStroke({
       points: [{ x, y }],
       color: strokeColor,
-      width: tool === 'highlighter' ? 20 : 3,
-      type: tool
+      width: tool === 'highlighter' ? 20 : strokeWidth,
+      type: tool,
+      opacity
     });
   };
 
@@ -423,7 +494,11 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
     const x = ('clientX' in e ? e.clientX : e.touches[0].clientX) - rect.left;
     const y = ('clientY' in e ? e.clientY : e.touches[0].clientY) - rect.top;
 
-    setCurrentStroke(prev => prev ? { ...prev, points: [...prev.points, { x, y }] } : null);
+    if (['line', 'rect', 'circle'].includes(tool)) {
+      setCurrentStroke(prev => prev ? { ...prev, points: [prev.points[0], { x, y }] } : null);
+    } else {
+      setCurrentStroke(prev => prev ? { ...prev, points: [...prev.points, { x, y }] } : null);
+    }
   };
 
   const stopDrawing = () => {
@@ -720,6 +795,10 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
     );
   }
 
+  const undo = () => {
+    setCurrentPaths(prev => prev.slice(0, -1));
+  };
+
   return (
     <div className={`h-screen w-screen flex flex-col overflow-hidden selection:bg-primary/20 relative ${tool === 'laser' ? 'cursor-none' : ''}`} style={{ fontFamily: '"Roboto", "Inter", "Poppins", "sans-serif"', backgroundColor: bgColor }}>
       {/* 1. CINEMATIC BACKGROUND LAYER */}
@@ -744,6 +823,77 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
         />
+      )}
+
+      {/* FLOATING QUICK TOOLBAR (BOTTOM CENTER) */}
+      {!isBlackout && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-4 p-2 pl-4 pr-2 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl animate-in slide-in-from-bottom-8 duration-500">
+          
+          {/* Slide Navigation */}
+          <div className="flex items-center gap-1 pr-4 border-r border-white/10">
+            <button 
+              onClick={() => { if (currentIdx > 0) { setCurrentIdx(currentIdx - 1); setShowAns(false); setShowSol(false); } }}
+              disabled={currentIdx === 0}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-30 transition-all"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="flex flex-col items-center min-w-[3rem]">
+              <span className="text-xs font-black text-white">{currentIdx + 1} <span className="text-slate-500">/ {activeQuestions.length}</span></span>
+            </div>
+            <button 
+              onClick={() => { if (currentIdx < activeQuestions.length - 1) { setCurrentIdx(currentIdx + 1); setShowAns(false); setShowSol(false); } else { setMode('summary'); } }}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          {/* Quick Tools */}
+          <div className="flex items-center gap-2">
+            {[
+              { id: 'cursor', icon: MousePointer2, label: 'Select' },
+              { id: 'pen', icon: PenTool, label: 'Pen' },
+              { id: 'highlighter', icon: Hash, label: 'Marker' },
+              { id: 'eraser', icon: Eraser, label: 'Erase' },
+              { id: 'laser', icon: Disc, label: 'Laser' },
+            ].map(t => (
+               <button
+                  key={t.id}
+                  onClick={() => setTool(t.id as any)}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${tool === t.id ? 'bg-primary text-white shadow-lg shadow-primary/25 scale-110' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}
+                  title={t.label}
+                >
+                  <t.icon size={20} />
+                </button>
+            ))}
+          </div>
+
+          {/* Color Picker (Mini) */}
+          {(tool === 'pen' || tool === 'highlighter') && (
+            <div className="flex items-center gap-2 pl-4 border-l border-white/10 animate-in fade-in slide-in-from-left-2 duration-300">
+              {['#ef4444', '#22c55e', '#3b82f6', '#ffffff', '#eab308'].map(c => (
+                <button
+                  key={c}
+                  onClick={() => setStrokeColor(c)}
+                  className={`w-6 h-6 rounded-full border-2 transition-all ${strokeColor === c ? 'border-white scale-125 shadow-lg' : 'border-transparent hover:scale-110'}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          <div className="flex items-center gap-2 pl-4 border-l border-white/10">
+             <button onClick={undo} className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:bg-white/10 hover:text-white transition-all" title="Undo">
+               <RotateCcw size={18} />
+             </button>
+             <button onClick={() => setShowAns(!showAns)} className={`h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${showAns ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-emerald-500 hover:bg-slate-700'}`}>
+                {showAns ? 'Hide Ans' : 'Show Ans'}
+             </button>
+          </div>
+
+        </div>
       )}
 
       <header className="absolute top-0 left-0 right-0 h-12 flex items-center justify-between px-3 sm:px-4 md:px-6 z-[40] bg-slate-950/90 border-b border-white/5">
@@ -804,7 +954,7 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
 
 
       {/* 5. CINEMATIC CONTENT CANVAS - DRAGGABLE */}
-      <main className="flex-1 relative flex items-center justify-center z-10 px-2 sm:px-3 md:px-6 lg:px-10 overflow-hidden">
+      <main className={`flex-1 relative flex items-center justify-center z-10 px-2 sm:px-3 md:px-6 lg:px-10 overflow-hidden transition-all duration-300 ${settingsOpen ? 'mr-[320px]' : ''}`}>
         <div
           className={`animate-in fade-in zoom-in-95 duration-700 transition-transform ${tool === 'cursor' ? 'cursor-grab active:cursor-grabbing' : ''}`}
           style={{
@@ -902,188 +1052,231 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
         </div>
       </main>
 
-      <button
-        onClick={() => setSettingsOpen(v => !v)}
-        onMouseDown={startSettingsDrag}
-        className="fixed z-[50] w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-slate-950/80 border border-white/10 text-slate-200 shadow-lg shadow-black/40 flex items-center justify-center backdrop-blur-md hover:bg-yellow-400 hover:text-slate-900 hover:border-yellow-300 transition-all active:scale-95 cursor-pointer"
-        aria-label="Board settings"
-        style={{ top: settingsPos.y, left: settingsPos.x }}
-      >
-        <Settings size={15} />
-      </button>
-
-      {settingsOpen && (
-        <div
-          className="fixed z-[45] flex flex-col gap-2"
-          style={{ top: settingsPos.y + 40, left: settingsPos.x + 40 }}
+      {/* RIGHT SIDEBAR TOOL PANEL */}
+      <div className={`fixed top-12 right-0 bottom-0 w-[320px] bg-slate-950/95 backdrop-blur-xl border-l border-white/10 z-50 flex flex-col transition-transform duration-300 ease-out ${settingsOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        
+        {/* Sidebar Toggle Handle (when open) */}
+        <button 
+          onClick={() => setSettingsOpen(false)}
+          className="absolute top-1/2 -left-3 w-6 h-12 bg-slate-800 rounded-l-lg border-y border-l border-white/10 flex items-center justify-center text-slate-400 hover:text-white"
         >
-          {/* Move/Drag */}
-          <div className="bg-black/80 px-3 py-2 rounded-2xl border border-white/10 flex flex-col gap-1.5 min-w-[150px]">
-            <div className="flex items-center justify-between text-[8px] font-black text-slate-300 uppercase tracking-[0.18em]">
-              <span className="flex items-center gap-1.5">
-                <Move size={12} className="text-primary" />
-                <span>Position</span>
-              </span>
-            </div>
-            <button
-              onClick={() => setContentPos({ x: 0, y: 0 })}
-              className="mt-1 h-7 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[8px] font-bold uppercase rounded-lg transition-all flex items-center justify-center gap-1"
-            >
-              <RotateCcw size={11} /> Reset
-            </button>
-            <div className="text-[7px] text-slate-500 text-center">
-              X:{Math.round(contentPos.x)} Y:{Math.round(contentPos.y)}
-            </div>
-          </div>
+          <ChevronRight size={14} />
+        </button>
 
-          {/* Zoom */}
-          <div className="bg-black/80 px-3 py-2 rounded-2xl border border-white/10 flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-300 uppercase tracking-[0.18em]">
-              <ZoomIn size={12} className="text-primary" />
-              <span>Zoom</span>
+        {/* TABS */}
+        <div className="flex items-center border-b border-white/10 bg-slate-900/50">
+          {(['draw', 'insert', 'measure'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveSidebarTab(tab)}
+              className={`flex-1 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSidebarTab === tab ? 'bg-primary/10 text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* TAB CONTENT */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-8 custom-scrollbar">
+          
+          {/* DRAW TAB */}
+          {activeSidebarTab === 'draw' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+              {/* Main Tools */}
+              <div className="space-y-3">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Tools</label>
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { id: 'cursor', icon: MousePointer2, label: 'Select' },
+                    { id: 'pen', icon: PenTool, label: 'Pen' },
+                    { id: 'highlighter', icon: Hash, label: 'Marker' },
+                    { id: 'eraser', icon: Eraser, label: 'Erase' },
+                    { id: 'laser', icon: Disc, label: 'Laser' },
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setTool(t.id as any)}
+                      className={`aspect-square rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all ${tool === t.id ? 'bg-primary text-white shadow-lg shadow-primary/25 ring-2 ring-primary/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'}`}
+                    >
+                      <t.icon size={20} />
+                      <span className="text-[9px] font-bold uppercase">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Stroke Properties */}
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Stroke Width</label>
+                    <span className="text-[10px] font-bold text-slate-300">{strokeWidth}px</span>
+                  </div>
+                  <input 
+                    type="range" min="1" max="20" value={strokeWidth} 
+                    onChange={(e) => setStrokeWidth(parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                   <div className="flex items-center justify-between">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Opacity</label>
+                    <span className="text-[10px] font-bold text-slate-300">{Math.round(opacity * 100)}%</span>
+                  </div>
+                  <input 
+                    type="range" min="10" max="100" value={opacity * 100} 
+                    onChange={(e) => setOpacity(parseInt(e.target.value) / 100)}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                </div>
+
+                 <div className="space-y-3">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Colors</label>
+                  <div className="grid grid-cols-5 gap-3">
+                    {['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#ffffff', '#94a3b8', '#000000'].map(c => (
+                      <button
+                        key={c}
+                        onClick={() => setStrokeColor(c)}
+                        className={`w-full aspect-square rounded-xl border-2 transition-all ${strokeColor === c ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                    <div className="relative w-full aspect-square rounded-xl overflow-hidden border border-white/10 group cursor-pointer">
+                       <div className="absolute inset-0 bg-gradient-to-br from-red-500 via-green-500 to-blue-500 opacity-50 group-hover:opacity-100 transition-opacity" />
+                       <input type="color" value={strokeColor} onChange={(e) => setStrokeColor(e.target.value)} className="absolute inset-0 w-[150%] h-[150%] -top-1/4 -left-1/4 p-0 cursor-pointer opacity-0" />
+                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                         <PaletteIcon size={16} className="text-white" />
+                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-1.5 mt-1">
+          )}
+
+          {/* INSERT TAB */}
+          {activeSidebarTab === 'insert' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+               <div className="space-y-3">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Shapes</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: 'line', icon: Minus, label: 'Line' },
+                    { id: 'rect', icon: Square, label: 'Rectangle' },
+                    { id: 'circle', icon: Circle, label: 'Circle' },
+                    { id: 'text', icon: Type, label: 'Text Box' },
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setTool(t.id as any)}
+                      className={`h-16 rounded-xl flex flex-col items-center justify-center gap-2 transition-all ${tool === t.id ? 'bg-primary text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'}`}
+                    >
+                      <t.icon size={20} />
+                      <span className="text-[10px] font-bold uppercase">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+               <div className="space-y-3">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Media</label>
+                 <button onClick={() => bgInputRef.current?.click()} className="w-full h-14 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-dashed border-slate-600 flex items-center justify-center gap-3 transition-all hover:border-primary hover:text-primary">
+                    <ImageIcon size={18} />
+                    <span className="text-xs font-bold uppercase tracking-wider">Upload Background</span>
+                 </button>
+               </div>
+               
+               <div className="space-y-3">
+                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Board Controls</label>
+                 <button
+                  onClick={() => setWhiteboardMode(v => !v)}
+                  className={`w-full h-12 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${whiteboardMode ? 'bg-yellow-400 text-slate-900' : 'bg-slate-800 text-slate-100 hover:bg-slate-700'}`}
+                >
+                  <span>Whiteboard Mode</span>
+                  <div className={`w-8 h-4 rounded-full p-0.5 ${whiteboardMode ? 'bg-black/20' : 'bg-black/40'}`}>
+                    <div className={`w-3 h-3 rounded-full bg-white transition-all ${whiteboardMode ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </div>
+                </button>
+                 <button
+                  onClick={() => setShowGrid(v => !v)}
+                  className="w-full h-12 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between"
+                >
+                  <span>Slide Grid</span>
+                  <Grid size={16} />
+                </button>
+               </div>
+            </div>
+          )}
+
+           {/* MEASURE TAB */}
+          {activeSidebarTab === 'measure' && (
+             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="p-8 text-center border-2 border-dashed border-slate-800 rounded-2xl flex flex-col items-center gap-4">
+                  <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-slate-500">
+                    <Sliders size={20} />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Coming Soon</p>
+                    <p className="text-[10px] text-slate-600">Ruler, Protractor & Compass</p>
+                  </div>
+                </div>
+             </div>
+          )}
+
+        </div>
+
+        {/* FOOTER NAV */}
+        <div className="p-5 bg-slate-950 border-t border-white/10 space-y-4">
+           {/* Slide Nav */}
+           <div className="flex items-center gap-2">
               <button
-                onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
-                className="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md transition-all flex items-center justify-center"
+                onClick={() => { if (currentIdx > 0) { setCurrentIdx(currentIdx - 1); setShowAns(false); setShowSol(false); } }}
+                disabled={currentIdx === 0}
+                className="h-10 flex-1 bg-slate-800 rounded-lg flex items-center justify-center text-slate-300 hover:bg-slate-700 disabled:opacity-50"
               >
-                <ZoomOut size={12} />
+                <ChevronLeft size={18} />
               </button>
-              <div className="flex-1 h-7 bg-slate-900 rounded-md flex items-center justify-center text-[10px] font-bold text-white">
-                {Math.round(scale * 100)}%
+              <div className="flex flex-col items-center w-24">
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Slide</span>
+                <span className="text-lg font-black text-white">{currentIdx + 1}<span className="text-slate-600 text-sm"> / {activeQuestions.length}</span></span>
               </div>
               <button
-                onClick={() => setScale(s => Math.min(2, s + 0.1))}
-                className="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md transition-all flex items-center justify-center"
+                onClick={() => { if (currentIdx < activeQuestions.length - 1) { setCurrentIdx(currentIdx + 1); setShowAns(false); setShowSol(false); } else { setMode('summary'); } }}
+                className="h-10 flex-1 bg-primary rounded-lg flex items-center justify-center text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
               >
-                <ZoomIn size={12} />
+                <ChevronRight size={18} />
               </button>
-            </div>
-            <button
-              onClick={() => setScale(1)}
-              className="mt-1 h-6 bg-slate-900 hover:bg-slate-800 text-slate-200 text-[8px] font-bold uppercase rounded-md transition-all"
-            >
-              100%
-            </button>
-          </div>
+           </div>
 
-          {/* Slides / Mark / Save / Export */}
-          <div className="bg-black/80 px-3 py-2 rounded-2xl border border-white/10 flex flex-col gap-1.5">
-            <button
-              onClick={() => setShowGrid(true)}
-              className="h-7 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[8px] font-bold uppercase rounded-md transition-all flex items-center gap-1.5"
-            >
-              <Grid size={12} /> Slides
-            </button>
-            <button
-              onClick={toggleBookmark}
-              className={`h-7 px-2 text-[8px] font-bold uppercase rounded-md transition-all flex items-center gap-1.5 ${bookmarks.has(currentIdx) ? 'bg-amber-500/30 text-amber-100' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'}`}
-            >
-              <Bookmark size={11} className={bookmarks.has(currentIdx) ? 'fill-amber-200' : ''} /> Mark
-            </button>
-            <button
-              onClick={async () => {
-                const newAnnot = { ...annotations, [currentIdx]: currentPaths };
-                setAnnotations(newAnnot);
-                await saveProgress(newAnnot);
-              }}
-              className="h-7 px-2 bg-blue-600 hover:bg-blue-500 text-white text-[8px] font-bold uppercase rounded-md transition-all flex items-center gap-1.5"
-            >
-              <Save size={11} /> Save
-            </button>
-            <button
-              onClick={downloadClassNotes}
-              className="h-7 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[8px] font-bold uppercase rounded-md transition-all flex items-center gap-1.5"
-            >
-              <Download size={11} /> Export
-            </button>
-          </div>
+           {/* Actions */}
+           <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setShowAns(!showAns)} className={`h-10 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${showAns ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-800 text-emerald-500 hover:bg-slate-700'}`}>
+                {showAns ? 'Hide Answer' : 'Show Answer'}
+              </button>
+               <button onClick={() => setShowSol(!showSol)} className={`h-10 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${showSol ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-800 text-blue-500 hover:bg-slate-700'}`}>
+                {showSol ? 'Hide Solution' : 'Solution'}
+              </button>
+           </div>
+           
+           <div className="pt-2 border-t border-white/5">
+              <button onClick={startAssistant} className={`w-full h-11 rounded-xl flex items-center justify-center gap-2 transition-all ${isLiveActive ? 'bg-accent-pink text-white animate-pulse shadow-lg shadow-accent-pink/20' : 'bg-slate-800 text-accent-pink border border-accent-pink/30 hover:bg-slate-700'}`}>
+                 <Sparkles size={16} />
+                 <span className="text-[10px] font-black uppercase tracking-wider">{isLiveActive ? 'Listening...' : 'Teacher AI'}</span>
+              </button>
+           </div>
         </div>
+      </div>
+
+      {/* TOGGLE BUTTON (When Closed) */}
+      {!settingsOpen && (
+        <button 
+          onClick={() => setSettingsOpen(true)}
+          className="fixed top-1/2 right-0 -translate-y-1/2 w-8 h-16 bg-slate-900 border-y border-l border-white/10 rounded-l-xl flex items-center justify-center text-primary shadow-xl z-40 hover:w-10 transition-all"
+        >
+          <ChevronLeft size={20} />
+        </button>
       )}
-
-      {/* 6. REFINED CONTROL DOCK */}
-      <footer className="h-18 flex items-center justify-center z-50">
-        <div className="bg-slate-950/95 px-2 sm:px-3 py-1.5 rounded-[18px] border border-white/10 flex items-center gap-4 sm:gap-5 shadow-2xl relative">
-
-          {/* Navigation Engine */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => { if (currentIdx > 0) { setCurrentIdx(currentIdx - 1); setShowAns(false); setShowSol(false); } }}
-              disabled={currentIdx === 0}
-              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-slate-800 text-slate-50 hover:bg-primary transition-all disabled:opacity-20"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <div className="flex flex-col items-center min-w-[80px]">
-              <span className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.18em]">Active Slide</span>
-              <span className="text-sm sm:text-base font-black text-white">{currentIdx + 1} <span className="text-slate-600 font-medium">/ {activeQuestions.length}</span></span>
-            </div>
-            <button
-              onClick={() => { if (currentIdx < activeQuestions.length - 1) { setCurrentIdx(currentIdx + 1); setShowAns(false); setShowSol(false); } else { setMode('summary'); } }}
-              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-slate-800 text-slate-50 hover:bg-primary transition-all shadow-xl shadow-primary/10"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-
-          <div className="w-px h-10 bg-white/10" />
-
-          {/* Interactive Tools */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {[
-              { id: 'cursor', icon: MousePointer2, label: 'Navigate' },
-              { id: 'pen', icon: PenTool, label: 'Synthesize' },
-              { id: 'highlighter', icon: Hash, label: 'Highlight' },
-              { id: 'laser', icon: Disc, label: 'Direct' },
-              { id: 'eraser', icon: Eraser, label: 'Clear' },
-            ].map(t => (
-              <button
-                key={t.id}
-                onClick={() => setTool(t.id as any)}
-                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl transition-all relative group/tool ${tool === t.id ? 'bg-yellow-400 text-slate-900 shadow-lg shadow-yellow-300/30' : 'bg-slate-800 text-slate-100 hover:bg-slate-700'}`}
-              >
-                <t.icon size={16} />
-                <span className="absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-slate-900 border border-white/10 text-[8px] font-black text-white uppercase tracking-[0.18em] rounded-lg opacity-0 group-hover/tool:opacity-100 transition-all pointer-events-none whitespace-nowrap">
-                  {t.label}
-                </span>
-              </button>
-            ))}
-            <div className="w-px h-7 bg-white/10 mx-2" />
-            <button
-              onClick={() => setWhiteboardMode(v => !v)}
-              className={`h-8 px-3 rounded-xl text-[9px] font-black uppercase tracking-[0.18em] transition-all ${whiteboardMode ? 'bg-yellow-400 text-slate-900' : 'bg-slate-800 text-slate-100 hover:bg-slate-700'}`}
-            >
-              {whiteboardMode ? 'Board: On' : 'Board: Off'}
-            </button>
-            <div className="w-px h-7 bg-white/10 mx-2" />
-            <div className="relative group/color">
-              <div className="w-7 h-7 rounded-full border-2 border-white/20 cursor-pointer shadow-inner" style={{ backgroundColor: strokeColor }}></div>
-              <input type="color" value={strokeColor} onChange={(e) => setStrokeColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
-            </div>
-          </div>
-
-          <div className="w-px h-8 bg-white/10" />
-
-          {/* AI Orchestration & Feedback */}
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setShowSol(!showSol)}
-              className={`h-9 px-4 rounded-xl flex items-center gap-2 transition-all ${showSol ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-emerald-400 hover:bg-slate-700 border border-emerald-500/40'}`}
-            >
-              <BookOpen size={16} />
-              <span className="text-[9px] font-black uppercase tracking-[0.18em]">{showSol ? 'Hide Logic' : 'View Logic'}</span>
-            </button>
-
-            <button
-              onClick={startAssistant}
-              className={`h-9 px-4 rounded-2xl flex items-center gap-2 transition-all ${isLiveActive ? 'bg-accent-pink text-white animate-pulse' : 'bg-slate-800 text-primary border border-primary/40 hover:bg-slate-700'}`}
-            >
-              <Sparkles size={16} />
-              <span className="text-[9px] font-black uppercase tracking-[0.18em]">Teacher AI</span>
-            </button>
-          </div>
-        </div>
-      </footer>
 
       {!isWriting && isLiveActive && (
         <div className="fixed top-24 right-10 w-96 glass p-8 rounded-[40px] border border-white/10 z-[100] animate-in slide-in-from-right-8 duration-500">
