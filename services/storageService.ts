@@ -2,10 +2,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { Question, QuestionSet } from '../types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_KEY);
+
+export const supabase = isSupabaseConfigured
+  ? createClient(SUPABASE_URL as string, SUPABASE_KEY as string)
+  : null as any;
 
 export const storageService = {
   // --- Questions ---

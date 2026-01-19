@@ -8,7 +8,7 @@ import {
   BookOpen, CheckCircle, Sparkles, AlertCircle, Timer as TimerIcon, ExternalLink,
   Mic, MicOff, MessageSquare, Volume2, Languages, Clipboard, RefreshCw, Layers,
   PenTool, Eraser, MousePointer2, Grid, Palette, Undo, MonitorPlay,
-  Move, Type, Image as ImageIcon, Globe, ZoomIn, ZoomOut, Disc, Bookmark, Flag, Lock, Key, Presentation, Download, Save
+  Move, Type, Image as ImageIcon, Globe, ZoomIn, ZoomOut, Disc, Bookmark, Flag, Lock, Key, Presentation, Download, Save, Settings
 } from 'lucide-react';
 import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 import { jsPDF } from 'jspdf';
@@ -79,14 +79,23 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
   const [contentPos, setContentPos] = useState({ x: 0, y: 0 });
   const [isDraggingContent, setIsDraggingContent] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
+  const [settingsPos, setSettingsPos] = useState({
+    x: 16,
+    y: typeof window !== 'undefined' ? window.innerHeight / 2 : 200
+  });
+  const [isDraggingSettings, setIsDraggingSettings] = useState(false);
+  const settingsDragStartRef = useRef({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [langMode, setLangMode] = useState<'both' | 'eng' | 'hin'>('both');
   const [bgImage, setBgImage] = useState<string | null>(null);
-  const [bgColor, setBgColor] = useState('#0A0C10'); // Default Dark Background
-  const [textColor, setTextColor] = useState('#F1F5F9'); // Default Light Text
+  const [bgColor, setBgColor] = useState('#0A0C10');
+  const [textColor, setTextColor] = useState('#F1F5F9');
   const [cardVisible, setCardVisible] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isBlackout, setIsBlackout] = useState(false);
+  const [whiteboardMode, setWhiteboardMode] = useState(false);
 
   // Annotation State
   const [tool, setTool] = useState<'cursor' | 'pen' | 'highlighter' | 'eraser' | 'laser'>('cursor');
@@ -95,12 +104,14 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [mousePos, setMousePos] = useState({ x: -100, y: -100 });
+  const isWriting = isDrawing && (tool === 'pen' || tool === 'highlighter' || tool === 'eraser');
 
   // Path-based Drawing State
   const [currentPaths, setCurrentPaths] = useState<DrawingPath[]>([]);
   const [currentStroke, setCurrentStroke] = useState<DrawingPath | null>(null);
   const [annotations, setAnnotations] = useState<Record<number, DrawingPath[]>>({}); // idx -> paths
   const [allowDownload, setAllowDownload] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(true);
 
   const liveRef = useRef<any>(null);
   const audioRef = useRef<{ in: AudioContext | null, out: AudioContext | null }>({ in: null, out: null });
@@ -197,11 +208,28 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
   const [isResizing, setIsResizing] = useState(false);
   const resizeStartRef = useRef({ x: 0, w: 0 });
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => { });
+    } else {
+      document.exitFullscreen().catch(() => { });
+    }
+  };
+
+  useEffect(() => {
+    const handler = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
   // Global Mouse Handlers for Dragging & Laser
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       setIsDraggingContent(false);
       setIsResizing(false);
+      setIsDraggingSettings(false);
     }
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (isDraggingContent) {
@@ -210,10 +238,15 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
           y: e.clientY - dragStartRef.current.y
         });
       }
-      if (isDraggingContent || isResizing) {
-        // Prevent drawing while dragging or resizing
+      if (isDraggingSettings) {
+        setSettingsPos({
+          x: e.clientX - settingsDragStartRef.current.x,
+          y: e.clientY - settingsDragStartRef.current.y
+        });
+      }
+      if (isDraggingContent || isResizing || isDraggingSettings) {
         e.stopPropagation();
-        e.preventDefault(); // Might prevent text selection
+        e.preventDefault();
       }
       if (isResizing) {
         const deltaX = e.clientX - resizeStartRef.current.x;
@@ -229,7 +262,15 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
       window.removeEventListener('mouseup', handleGlobalMouseUp);
       window.removeEventListener('mousemove', handleGlobalMouseMove);
     };
-  }, [isDraggingContent, tool, isResizing]);
+  }, [isDraggingContent, tool, isResizing, isDraggingSettings]);
+
+  const startSettingsDrag = (e: React.MouseEvent) => {
+    setIsDraggingSettings(true);
+    settingsDragStartRef.current = {
+      x: e.clientX - settingsPos.x,
+      y: e.clientY - settingsPos.y
+    };
+  };
 
   const handleAuth = () => {
     if (activeSet?.password === passwordInput) {
@@ -680,58 +721,82 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
   }
 
   return (
-    <div className={`h-screen w-screen flex flex-col overflow-hidden selection:bg-primary/20 bg-slate-950 relative ${tool === 'laser' ? 'cursor-none' : ''}`} style={{ fontFamily: '"Inter", "Poppins", sans-serif' }}>
+    <div className={`h-screen w-screen flex flex-col overflow-hidden selection:bg-primary/20 relative ${tool === 'laser' ? 'cursor-none' : ''}`} style={{ fontFamily: '"Roboto", "Inter", "Poppins", "sans-serif"', backgroundColor: bgColor }}>
       {/* 1. CINEMATIC BACKGROUND LAYER */}
-      <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px] animate-pulse"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent-purple/10 rounded-full blur-[120px]"></div>
-      </div>
-      {bgImage && <img src={bgImage} className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none z-0" />}
+      {!isBlackout && (
+        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px] animate-pulse"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent-purple/10 rounded-full blur-[120px]"></div>
+        </div>
+      )}
+      {!isBlackout && bgImage && <img src={bgImage} className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none z-0" />}
 
       {/* 2. ANNOTATION CANVAS */}
-      <canvas
-        ref={canvasRef}
-        className={`absolute inset-0 z-30 touch-none ${tool === 'cursor' ? 'pointer-events-none' : 'cursor-crosshair'}`}
-        onMouseDown={startDrawing}
-        onMouseMove={draw}
-        onMouseUp={stopDrawing}
-        onMouseLeave={stopDrawing}
-        onTouchStart={startDrawing}
-        onTouchMove={draw}
-        onTouchEnd={stopDrawing}
-      />
+      {!isBlackout && (
+        <canvas
+          ref={canvasRef}
+          className={`absolute inset-0 z-30 touch-none ${tool === 'cursor' ? 'pointer-events-none' : 'cursor-crosshair'}`}
+          onMouseDown={startDrawing}
+          onMouseMove={draw}
+          onMouseUp={stopDrawing}
+          onMouseLeave={stopDrawing}
+          onTouchStart={startDrawing}
+          onTouchMove={draw}
+          onTouchEnd={stopDrawing}
+        />
+      )}
 
-      {/* 4. INSTITUTIONAL HEADER */}
-      <header className="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-10 z-[40]">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2 px-4 py-2 bg-white/5 backdrop-blur-md rounded-2xl border border-white/5">
-            <Presentation size={16} className="text-primary" />
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{activeSet?.name || 'Live Environment'}</span>
+      <header className="absolute top-0 left-0 right-0 h-12 flex items-center justify-between px-3 sm:px-4 md:px-6 z-[40] bg-slate-950/90 border-b border-white/5">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-xl border border-white/10">
+            <Presentation size={14} className="text-primary" />
+            <span className="text-[8px] sm:text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">
+              {activeSet?.name || 'Live Environment'}
+            </span>
           </div>
           <div className="h-4 w-px bg-white/10" />
           <div className="flex items-center gap-2">
-            <Clock size={16} className="text-slate-500" />
-            <span className="text-sm font-black text-slate-100 font-mono">{Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}</span>
+            <div className="flex items-center gap-1.5">
+              <Clock size={14} className="text-slate-500" />
+              <span className="text-[11px] sm:text-xs font-black text-slate-100 font-mono">
+                {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}
+              </span>
+            </div>
+            <div className="hidden xs:inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-pink-500 text-white text-[8px] sm:text-[9px] md:text-[10px] font-black uppercase tracking-[0.22em]">
+              Live Question
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 p-1 bg-white/5 backdrop-blur-md rounded-xl border border-white/5 mr-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 p-0.5 bg-white/5 rounded-lg border border-white/10 mr-2 sm:mr-3">
             {(['both', 'eng', 'hin'] as const).map(l => (
               <button
                 key={l}
                 onClick={() => setLangMode(l)}
-                className={`px-3 py-1.5 text-[9px] font-black uppercase rounded-lg transition-all ${langMode === l ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`px-2 py-0.5 text-[8px] font-black uppercase rounded-md transition-all ${langMode === l ? 'bg-primary text-white' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 {l}
               </button>
             ))}
           </div>
-          <button onClick={() => bgInputRef.current?.click()} className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-xl border border-white/5 text-slate-400 hover:text-white transition-all">
-            <ImageIcon size={18} />
+          <button onClick={() => bgInputRef.current?.click()} className="w-8 h-8 flex items-center justify-center bg-white/5 rounded-lg border border-white/10 text-slate-400 hover:text-white transition-all">
+            <ImageIcon size={16} />
           </button>
-          <button onClick={onExit} className="w-10 h-10 flex items-center justify-center bg-error/10 rounded-xl border border-error/20 text-error hover:bg-error hover:text-white transition-all">
-            <X size={18} />
+          <button
+            onClick={() => setIsBlackout(b => !b)}
+            className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${isBlackout ? 'bg-white text-slate-900 border-white' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+          >
+            <MonitorPlay size={16} />
+          </button>
+          <button
+            onClick={toggleFullscreen}
+            className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all ${isFullscreen ? 'bg-primary text-white border-primary' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'}`}
+          >
+            <Maximize size={16} />
+          </button>
+          <button onClick={onExit} className="w-8 h-8 flex items-center justify-center bg-error/10 rounded-lg border border-error/30 text-error hover:bg-error hover:text-white transition-all">
+            <X size={16} />
           </button>
           <input type="file" accept="image/*" ref={bgInputRef} className="hidden" onChange={handleBgUpload} />
         </div>
@@ -739,26 +804,37 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
 
 
       {/* 5. CINEMATIC CONTENT CANVAS - DRAGGABLE */}
-      <main className="flex-1 relative flex items-center justify-center z-10 px-20 overflow-hidden">
+      <main className="flex-1 relative flex items-center justify-center z-10 px-2 sm:px-3 md:px-6 lg:px-10 overflow-hidden">
         <div
           className={`animate-in fade-in zoom-in-95 duration-700 transition-transform ${tool === 'cursor' ? 'cursor-grab active:cursor-grabbing' : ''}`}
           style={{
             transform: `translate(${contentPos.x}px, ${contentPos.y}px) scale(${scale})`,
-            width: `${containerSize.w}px`,
-            maxWidth: 'none'
+            width: '100%',
+            maxWidth: `${containerSize.w}px`
           }}
           onMouseDown={startContentDrag}
         >
           {/* DRAG HANDLE */}
           {tool === 'cursor' && (
-            <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/10 text-[9px] font-black text-white/60 uppercase tracking-widest cursor-grab active:cursor-grabbing select-none">
-              <Move size={14} className="text-primary" />
-              <span>Drag to Move Question</span>
+            <div className="absolute -top-9 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 bg-black/40 rounded-full border border-white/10 text-[8px] font-black text-white/70 uppercase tracking-[0.2em] cursor-grab active:cursor-grabbing select-none">
+              <Move size={12} className="text-primary" />
+              <span>Move Slide</span>
             </div>
           )}
 
-          {showSol ? (
-            <div className="glass p-16 rounded-[48px] animate-in slide-in-from-bottom-8 duration-500 border border-white/10">
+          {whiteboardMode ? (
+            <div className="flex items-center justify-center max-h-[78vh]">
+              <div
+                className="w-full max-w-5xl rounded-3xl border border-slate-300 bg-white shadow-[0_25px_60px_rgba(15,23,42,0.75)] relative overflow-hidden"
+                style={{
+                  aspectRatio: '16 / 9',
+                  backgroundColor: '#ffffff'
+                }}
+              >
+              </div>
+            </div>
+          ) : showSol ? (
+            <div className="glass p-6 md:p-10 rounded-[32px] animate-in slide-in-from-bottom-8 duration-500 border border-white/10 max-h-[70vh] overflow-y-auto">
               <div className="flex items-center gap-4 mb-8">
                 <div className="w-12 h-12 bg-success/20 rounded-2xl flex items-center justify-center text-success">
                   <BookOpen size={24} />
@@ -771,19 +847,24 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
               </div>
             </div>
           ) : (
-            <div className="space-y-24">
-              {/* Massive Question Typography */}
-              <div className="text-center space-y-10">
+            <div className="space-y-5 md:space-y-7">
+              <div className="px-2 sm:px-4 max-w-5xl mx-auto text-left space-y-2 sm:space-y-3 md:space-y-4">
                 {(langMode === 'both' || langMode === 'eng') && (
-                  <h1 className="text-5xl md:text-6xl font-black text-white leading-[1.1] tracking-tight drop-shadow-2xl font-heading" dangerouslySetInnerHTML={{ __html: q.question_eng }} />
+                  <h1
+                    className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black leading-snug"
+                    style={{ color: textColor || '#f9fafb' }}
+                    dangerouslySetInnerHTML={{ __html: q.question_eng }}
+                  />
                 )}
                 {(langMode === 'both' || langMode === 'hin') && (
-                  <h2 className="text-4xl md:text-5xl font-bold text-slate-400 italic leading-[1.3] drop-shadow-xl" dangerouslySetInnerHTML={{ __html: q.question_hin }} />
+                  <h2
+                    className="text-base sm:text-lg md:text-xl lg:text-2xl font-black leading-snug text-slate-100"
+                    dangerouslySetInnerHTML={{ __html: q.question_hin }}
+                  />
                 )}
               </div>
 
-              {/* Glassmorphic Option Matrix */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-1.5 sm:gap-2 md:gap-2.5 max-h-[40vh] overflow-y-auto pr-1 md:pr-2">
                 {[q.option1_eng, q.option2_eng, q.option3_eng, q.option4_eng].map((opt, i) => {
                   const isCorrect = (i + 1).toString() === q.answer;
                   const showHighlight = showAns && isCorrect;
@@ -791,22 +872,25 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
                     <button
                       key={i}
                       onClick={() => setShowAns(!showAns)}
-                      className={`relative p-10 rounded-[32px] border transition-all text-left group/opt ${showHighlight
-                        ? 'bg-success/20 border-success shadow-[0_0_40px_rgba(34,197,94,0.15)] scale-[1.02]'
-                        : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
+                      className={`relative px-2 py-1.5 sm:px-2.5 sm:py-2 md:px-3 md:py-2.5 rounded-xl border transition-all text-left group/opt ${showHighlight
+                        ? 'bg-emerald-500/90 text-white border-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.35)] scale-[1.02]'
+                        : 'bg-slate-900/70 border-slate-600 hover:bg-slate-800 hover:border-yellow-300'
                         }`}
                     >
-                      <div className="flex items-center gap-8">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black transition-all ${showHighlight ? 'bg-success text-white' : 'bg-white/10 text-slate-400 group-hover/opt:bg-primary group-hover/opt:text-white'
+                      <div className="flex items-center gap-1.5 sm:gap-2 md:gap-2.5">
+                        <div className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded-2xl flex items-center justify-center text-[10px] sm:text-xs md:text-sm font-black transition-all ${showHighlight ? 'bg-white text-emerald-600' : 'bg-yellow-400 text-slate-900 group-hover/opt:bg-white group-hover/opt:text-pink-600'
                           }`}>
                           {String.fromCharCode(65 + i)}
                         </div>
-                        <div className={`text-2xl font-bold transition-all ${showHighlight ? 'text-white' : 'text-slate-300 group-hover/opt:text-white'
-                          }`} dangerouslySetInnerHTML={{ __html: opt }} />
+                        <div
+                          className={`text-[11px] sm:text-xs md:text-sm lg:text-base font-bold transition-all ${showHighlight ? 'text-white' : 'text-slate-100 group-hover/opt:text-white'
+                            }`}
+                          dangerouslySetInnerHTML={{ __html: opt }}
+                        />
                       </div>
                       {showHighlight && (
-                        <div className="absolute top-4 right-8 flex items-center gap-2 text-success font-black text-[10px] uppercase tracking-widest animate-pulse">
-                          <CheckCircle size={14} /> Correct Reference
+                        <div className="absolute top-2 right-3 sm:right-4 flex items-center gap-1 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.18em] text-white">
+                          <CheckCircle size={14} /> Correct
                         </div>
                       )}
                     </button>
@@ -818,139 +902,134 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
         </div>
       </main>
 
-      {/* FLOATING CONTENT CONTROLS */}
-      <div className="fixed top-24 left-6 z-[45] flex flex-col gap-2">
-        {/* Move/Drag Toggle Info */}
-        <div className="glass px-4 py-3 rounded-2xl border border-white/10 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-            <Move size={14} className="text-primary" />
-            <span>Position Mode</span>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setContentPos({ x: 0, y: 0 })}
-              className="flex-1 h-8 bg-white/5 hover:bg-white/10 text-slate-400 text-[9px] font-bold uppercase rounded-lg transition-all flex items-center justify-center gap-1"
-            >
-              <RotateCcw size={12} /> Reset
-            </button>
-          </div>
-          <div className="text-[8px] text-slate-600 text-center">
-            X: {Math.round(contentPos.x)} • Y: {Math.round(contentPos.y)}
-          </div>
-        </div>
+      <button
+        onClick={() => setSettingsOpen(v => !v)}
+        onMouseDown={startSettingsDrag}
+        className="fixed z-[50] w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-slate-950/80 border border-white/10 text-slate-200 shadow-lg shadow-black/40 flex items-center justify-center backdrop-blur-md hover:bg-yellow-400 hover:text-slate-900 hover:border-yellow-300 transition-all active:scale-95 cursor-pointer"
+        aria-label="Board settings"
+        style={{ top: settingsPos.y, left: settingsPos.x }}
+      >
+        <Settings size={15} />
+      </button>
 
-        {/* Zoom Controls */}
-        <div className="glass px-4 py-3 rounded-2xl border border-white/10 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-            <ZoomIn size={14} className="text-primary" />
-            <span>Scale</span>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
-              className="w-8 h-8 bg-white/5 hover:bg-white/10 text-slate-400 rounded-lg transition-all flex items-center justify-center"
-            >
-              <ZoomOut size={14} />
-            </button>
-            <div className="flex-1 h-8 bg-white/5 rounded-lg flex items-center justify-center text-xs font-bold text-white">
-              {Math.round(scale * 100)}%
+      {settingsOpen && (
+        <div
+          className="fixed z-[45] flex flex-col gap-2"
+          style={{ top: settingsPos.y + 40, left: settingsPos.x + 40 }}
+        >
+          {/* Move/Drag */}
+          <div className="bg-black/80 px-3 py-2 rounded-2xl border border-white/10 flex flex-col gap-1.5 min-w-[150px]">
+            <div className="flex items-center justify-between text-[8px] font-black text-slate-300 uppercase tracking-[0.18em]">
+              <span className="flex items-center gap-1.5">
+                <Move size={12} className="text-primary" />
+                <span>Position</span>
+              </span>
             </div>
             <button
-              onClick={() => setScale(s => Math.min(2, s + 0.1))}
-              className="w-8 h-8 bg-white/5 hover:bg-white/10 text-slate-400 rounded-lg transition-all flex items-center justify-center"
+              onClick={() => setContentPos({ x: 0, y: 0 })}
+              className="mt-1 h-7 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[8px] font-bold uppercase rounded-lg transition-all flex items-center justify-center gap-1"
             >
-              <ZoomIn size={14} />
+              <RotateCcw size={11} /> Reset
+            </button>
+            <div className="text-[7px] text-slate-500 text-center">
+              X:{Math.round(contentPos.x)} Y:{Math.round(contentPos.y)}
+            </div>
+          </div>
+
+          {/* Zoom */}
+          <div className="bg-black/80 px-3 py-2 rounded-2xl border border-white/10 flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-300 uppercase tracking-[0.18em]">
+              <ZoomIn size={12} className="text-primary" />
+              <span>Zoom</span>
+            </div>
+            <div className="flex gap-1.5 mt-1">
+              <button
+                onClick={() => setScale(s => Math.max(0.5, s - 0.1))}
+                className="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md transition-all flex items-center justify-center"
+              >
+                <ZoomOut size={12} />
+              </button>
+              <div className="flex-1 h-7 bg-slate-900 rounded-md flex items-center justify-center text-[10px] font-bold text-white">
+                {Math.round(scale * 100)}%
+              </div>
+              <button
+                onClick={() => setScale(s => Math.min(2, s + 0.1))}
+                className="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md transition-all flex items-center justify-center"
+              >
+                <ZoomIn size={12} />
+              </button>
+            </div>
+            <button
+              onClick={() => setScale(1)}
+              className="mt-1 h-6 bg-slate-900 hover:bg-slate-800 text-slate-200 text-[8px] font-bold uppercase rounded-md transition-all"
+            >
+              100%
             </button>
           </div>
-          <button
-            onClick={() => setScale(1)}
-            className="h-7 bg-white/5 hover:bg-white/10 text-slate-400 text-[9px] font-bold uppercase rounded-lg transition-all"
-          >
-            Reset to 100%
-          </button>
-        </div>
 
-        {/* Container Width */}
-        <div className="glass px-4 py-3 rounded-2xl border border-white/10 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-            <Maximize size={14} className="text-primary" />
-            <span>Width</span>
-          </div>
-          <input
-            type="range"
-            min="400"
-            max="1600"
-            value={containerSize.w}
-            onChange={(e) => setContainerSize({ w: parseInt(e.target.value) })}
-            className="w-full accent-primary"
-          />
-          <div className="text-[8px] text-slate-600 text-center">
-            {containerSize.w}px
+          {/* Slides / Mark / Save / Export */}
+          <div className="bg-black/80 px-3 py-2 rounded-2xl border border-white/10 flex flex-col gap-1.5">
+            <button
+              onClick={() => setShowGrid(true)}
+              className="h-7 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[8px] font-bold uppercase rounded-md transition-all flex items-center gap-1.5"
+            >
+              <Grid size={12} /> Slides
+            </button>
+            <button
+              onClick={toggleBookmark}
+              className={`h-7 px-2 text-[8px] font-bold uppercase rounded-md transition-all flex items-center gap-1.5 ${bookmarks.has(currentIdx) ? 'bg-amber-500/30 text-amber-100' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'}`}
+            >
+              <Bookmark size={11} className={bookmarks.has(currentIdx) ? 'fill-amber-200' : ''} /> Mark
+            </button>
+            <button
+              onClick={async () => {
+                const newAnnot = { ...annotations, [currentIdx]: currentPaths };
+                setAnnotations(newAnnot);
+                await saveProgress(newAnnot);
+              }}
+              className="h-7 px-2 bg-blue-600 hover:bg-blue-500 text-white text-[8px] font-bold uppercase rounded-md transition-all flex items-center gap-1.5"
+            >
+              <Save size={11} /> Save
+            </button>
+            <button
+              onClick={downloadClassNotes}
+              className="h-7 px-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[8px] font-bold uppercase rounded-md transition-all flex items-center gap-1.5"
+            >
+              <Download size={11} /> Export
+            </button>
           </div>
         </div>
-
-        {/* Quick Actions */}
-        <div className="glass px-3 py-2 rounded-2xl border border-white/10 flex flex-col gap-1.5">
-          <button
-            onClick={() => setShowGrid(true)}
-            className="h-9 px-3 bg-white/5 hover:bg-white/10 text-slate-400 text-[9px] font-bold uppercase rounded-lg transition-all flex items-center gap-2"
-          >
-            <Grid size={14} /> Slide Grid
-          </button>
-          <button
-            onClick={toggleBookmark}
-            className={`h-9 px-3 text-[9px] font-bold uppercase rounded-lg transition-all flex items-center gap-2 ${bookmarks.has(currentIdx) ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 hover:bg-white/10 text-slate-400'}`}
-          >
-            <Bookmark size={14} className={bookmarks.has(currentIdx) ? 'fill-amber-400' : ''} /> {bookmarks.has(currentIdx) ? 'Bookmarked' : 'Bookmark'}
-          </button>
-          <button
-            onClick={async () => {
-              const newAnnot = { ...annotations, [currentIdx]: currentPaths };
-              setAnnotations(newAnnot);
-              await saveProgress(newAnnot);
-            }}
-            className="h-9 px-3 bg-primary/20 hover:bg-primary/30 text-primary text-[9px] font-bold uppercase rounded-lg transition-all flex items-center gap-2"
-          >
-            <Save size={14} /> Save Annotations
-          </button>
-          <button
-            onClick={downloadClassNotes}
-            className="h-9 px-3 bg-white/5 hover:bg-white/10 text-slate-400 text-[9px] font-bold uppercase rounded-lg transition-all flex items-center gap-2"
-          >
-            <Download size={14} /> Download Slide
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* 6. REFINED CONTROL DOCK */}
-      <footer className="h-28 flex items-center justify-center z-50">
-        <div className="glass px-10 py-5 rounded-[32px] border border-white/10 flex items-center gap-12 shadow-2xl relative">
+      <footer className="h-18 flex items-center justify-center z-50">
+        <div className="bg-slate-950/95 px-2 sm:px-3 py-1.5 rounded-[18px] border border-white/10 flex items-center gap-4 sm:gap-5 shadow-2xl relative">
 
           {/* Navigation Engine */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => { if (currentIdx > 0) { setCurrentIdx(currentIdx - 1); setShowAns(false); setShowSol(false); } }}
               disabled={currentIdx === 0}
-              className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/10 text-white hover:bg-primary transition-all disabled:opacity-20"
+              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-slate-800 text-slate-50 hover:bg-primary transition-all disabled:opacity-20"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={18} />
             </button>
             <div className="flex flex-col items-center min-w-[80px]">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Slide</span>
-              <span className="text-lg font-black text-white">{currentIdx + 1} <span className="text-slate-600 font-medium">/ {activeQuestions.length}</span></span>
+              <span className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.18em]">Active Slide</span>
+              <span className="text-sm sm:text-base font-black text-white">{currentIdx + 1} <span className="text-slate-600 font-medium">/ {activeQuestions.length}</span></span>
             </div>
             <button
               onClick={() => { if (currentIdx < activeQuestions.length - 1) { setCurrentIdx(currentIdx + 1); setShowAns(false); setShowSol(false); } else { setMode('summary'); } }}
-              className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/10 text-white hover:bg-primary transition-all shadow-xl shadow-primary/10"
+              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl bg-slate-800 text-slate-50 hover:bg-primary transition-all shadow-xl shadow-primary/10"
             >
-              <ChevronRight size={24} />
+              <ChevronRight size={18} />
             </button>
           </div>
 
           <div className="w-px h-10 bg-white/10" />
 
           {/* Interactive Tools */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {[
               { id: 'cursor', icon: MousePointer2, label: 'Navigate' },
               { id: 'pen', icon: PenTool, label: 'Synthesize' },
@@ -961,46 +1040,52 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
               <button
                 key={t.id}
                 onClick={() => setTool(t.id as any)}
-                className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all relative group/tool ${tool === t.id ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-slate-400 hover:bg-white/10'}`}
+                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-xl transition-all relative group/tool ${tool === t.id ? 'bg-yellow-400 text-slate-900 shadow-lg shadow-yellow-300/30' : 'bg-slate-800 text-slate-100 hover:bg-slate-700'}`}
               >
-                <t.icon size={20} />
-                <span className="absolute -top-12 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-slate-900 border border-white/10 text-[9px] font-black text-white uppercase tracking-widest rounded-lg opacity-0 group-hover/tool:opacity-100 transition-all pointer-events-none whitespace-nowrap">
+                <t.icon size={16} />
+                <span className="absolute -top-9 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-slate-900 border border-white/10 text-[8px] font-black text-white uppercase tracking-[0.18em] rounded-lg opacity-0 group-hover/tool:opacity-100 transition-all pointer-events-none whitespace-nowrap">
                   {t.label}
                 </span>
               </button>
             ))}
-            <div className="w-px h-8 bg-white/10 mx-2" />
+            <div className="w-px h-7 bg-white/10 mx-2" />
+            <button
+              onClick={() => setWhiteboardMode(v => !v)}
+              className={`h-8 px-3 rounded-xl text-[9px] font-black uppercase tracking-[0.18em] transition-all ${whiteboardMode ? 'bg-yellow-400 text-slate-900' : 'bg-slate-800 text-slate-100 hover:bg-slate-700'}`}
+            >
+              {whiteboardMode ? 'Board: On' : 'Board: Off'}
+            </button>
+            <div className="w-px h-7 bg-white/10 mx-2" />
             <div className="relative group/color">
-              <div className="w-8 h-8 rounded-full border-2 border-white/20 cursor-pointer shadow-inner" style={{ backgroundColor: strokeColor }}></div>
+              <div className="w-7 h-7 rounded-full border-2 border-white/20 cursor-pointer shadow-inner" style={{ backgroundColor: strokeColor }}></div>
               <input type="color" value={strokeColor} onChange={(e) => setStrokeColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
             </div>
           </div>
 
-          <div className="w-px h-10 bg-white/10" />
+          <div className="w-px h-8 bg-white/10" />
 
           {/* AI Orchestration & Feedback */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => setShowSol(!showSol)}
-              className={`h-12 px-6 rounded-2xl flex items-center gap-3 transition-all ${showSol ? 'bg-emerald-500 text-white' : 'bg-white/5 text-emerald-500 hover:bg-emerald-500/10 border border-emerald-500/20'}`}
+              className={`h-9 px-4 rounded-xl flex items-center gap-2 transition-all ${showSol ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-emerald-400 hover:bg-slate-700 border border-emerald-500/40'}`}
             >
-              <BookOpen size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">{showSol ? 'Hide Logic' : 'View Logic'}</span>
+              <BookOpen size={16} />
+              <span className="text-[9px] font-black uppercase tracking-[0.18em]">{showSol ? 'Hide Logic' : 'View Logic'}</span>
             </button>
 
             <button
               onClick={startAssistant}
-              className={`h-12 px-6 rounded-22 flex items-center gap-3 transition-all ${isLiveActive ? 'bg-accent-pink text-white animate-pulse' : 'bg-primary/20 text-primary border border-primary/20 hover:bg-primary/30'}`}
+              className={`h-9 px-4 rounded-2xl flex items-center gap-2 transition-all ${isLiveActive ? 'bg-accent-pink text-white animate-pulse' : 'bg-slate-800 text-primary border border-primary/40 hover:bg-slate-700'}`}
             >
-              <Sparkles size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Teacher AI</span>
+              <Sparkles size={16} />
+              <span className="text-[9px] font-black uppercase tracking-[0.18em]">Teacher AI</span>
             </button>
           </div>
         </div>
       </footer>
 
-      {/* AI Assistant Overlay */}
-      {isLiveActive && (
+      {!isWriting && isLiveActive && (
         <div className="fixed top-24 right-10 w-96 glass p-8 rounded-[40px] border border-white/10 z-[100] animate-in slide-in-from-right-8 duration-500">
           <div className="flex items-center gap-4 mb-6">
             <div className="w-10 h-10 bg-accent-pink/20 rounded-2xl flex items-center justify-center text-accent-pink animate-spin-slow">
