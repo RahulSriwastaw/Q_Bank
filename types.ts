@@ -66,6 +66,24 @@ export interface QuestionSet {
     annotations?: Record<number, any[]>;
     allowDownload?: boolean;
     backgroundImage?: string;
+    toolSettings?: {
+      eraser?: {
+        mode: 'partial' | 'whole';
+        size: number;
+        locked: boolean;
+      };
+      laser?: {
+        mode: 'trail' | 'point';
+        size: number;
+        color: string;
+        effect: 'standard' | 'white_burn';
+        intensity: number;
+        delay: number;
+        locked: boolean;
+        glow: boolean;
+        highlight: boolean;
+      };
+    };
   };
   status?: 'draft' | 'public';
   category?: 'Daily' | 'Weekly' | 'Monthly' | 'Yearly' | 'Custom';

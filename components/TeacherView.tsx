@@ -3,13 +3,11 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { storageService } from '../services/storageService';
 import { QuestionSet, Question } from '../types';
 import { Button } from './Button';
+import { FloatingToolbar } from './FloatingToolbar';
 import {
-  ChevronLeft, ChevronRight, Eye, EyeOff, Hash, Clock, Maximize, RotateCcw, X,
-  BookOpen, CheckCircle, Sparkles, AlertCircle, Timer as TimerIcon, ExternalLink,
-  Mic, MicOff, MessageSquare, Volume2, Languages, Clipboard, RefreshCw, Layers,
-  PenTool, Eraser, MousePointer2, Grid, Palette, Undo, MonitorPlay,
-  Move, Type, Image as ImageIcon, Globe, ZoomIn, ZoomOut, Disc, Bookmark, Flag, Lock, Key, Presentation, Download, Save, Settings,
-  Square, Circle, Minus, Sliders, Palette as PaletteIcon, MousePointer, Hand
+  Clock, Maximize, X, BookOpen, CheckCircle, Sparkles, AlertCircle, 
+  Layers, Grid, MonitorPlay, Move, Image as ImageIcon, Bookmark, Lock, Presentation,
+  Eye, EyeOff
 } from 'lucide-react';
 import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 import { jsPDF } from 'jspdf';
@@ -20,15 +18,25 @@ interface TeacherViewProps {
   initialSetId?: string;
 }
 
-type Point = { x: number, y: number };
+type Point = { x: number, y: number, pressure?: number };
 type DrawingPath = { 
   points: Point[], 
   color: string, 
   width: number, 
   opacity?: number,
   type: 'pen' | 'highlighter' | 'eraser' | 'laser' | 'line' | 'rect' | 'circle' | 'text',
-  text?: string
+  text?: string,
+  penStyle?: 'basic' | 'pro' | 'calligraphy'
 };
+
+function getStroke(points: Point[], options: any) {
+  // Simple simulated pressure-sensitive stroke generation
+  // This is a placeholder for a real perfect-freehand implementation if available,
+  // but here we will implement a basic variable width renderer.
+  return points; 
+}
+
+// ... existing code ...
 
 function encode(bytes: Uint8Array) {
   let binary = '';
@@ -87,12 +95,6 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
   const [contentPos, setContentPos] = useState({ x: 0, y: 0 });
   const [isDraggingContent, setIsDraggingContent] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
-  const [settingsPos, setSettingsPos] = useState({
-    x: 16,
-    y: typeof window !== 'undefined' ? window.innerHeight / 2 : 200
-  });
-  const [isDraggingSettings, setIsDraggingSettings] = useState(false);
-  const settingsDragStartRef = useRef({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const [langMode, setLangMode] = useState<'both' | 'eng' | 'hin'>('both');
   const [bgImage, setBgImage] = useState<string | null>(null);
@@ -107,11 +109,30 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
 
   // Annotation State
   const [tool, setTool] = useState<'cursor' | 'pen' | 'highlighter' | 'eraser' | 'laser' | 'line' | 'rect' | 'circle' | 'text'>('cursor');
-  const [activeSidebarTab, setActiveSidebarTab] = useState<'draw' | 'insert' | 'measure'>('draw');
+  const [penStyle, setPenStyle] = useState<'basic' | 'pro' | 'calligraphy'>('basic');
   const [strokeColor, setStrokeColor] = useState('#ef4444');
-  const [strokeWidth, setStrokeWidth] = useState(2);
+  const [strokeWidth, setStrokeWidth] = useState(6);
   const [opacity, setOpacity] = useState(1);
+  const [smartOpts, setSmartOpts] = useState({ line: false, shape: false, pressure: false });
+  const [eraserMode, setEraserMode] = useState<'partial' | 'whole'>('partial');
+  const [isEraserLocked, setIsEraserLocked] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
+
+  // Laser State
+  const [laserMode, setLaserMode] = useState<'trail' | 'point'>('trail');
+  const [laserSize, setLaserSize] = useState(4); 
+  const [laserColor, setLaserColor] = useState('#ef4444');
+  const [laserEffect, setLaserEffect] = useState<'standard' | 'white_burn'>('standard');
+  const [laserIntensity, setLaserIntensity] = useState(0.68);
+  const [laserDelay, setLaserDelay] = useState(5.0);
+  const [isLaserLocked, setIsLaserLocked] = useState(false);
+  const [isLaserGlow, setIsLaserGlow] = useState(true);
+  const [isLaserHighlight, setIsLaserHighlight] = useState(false);
+  
+  // Laser Paths (Temporary)
+  type LaserPath = { points: Point[], color: string, width: number, timestamp: number, type: 'trail', effect: 'standard' | 'white_burn' };
+  const [laserPaths, setLaserPaths] = useState<LaserPath[]>([]);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tempCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -121,10 +142,12 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
 
   // Path-based Drawing State
   const [currentPaths, setCurrentPaths] = useState<DrawingPath[]>([]);
+  const [history, setHistory] = useState<DrawingPath[][]>([]); // Undo stack
+  const [redoStack, setRedoStack] = useState<DrawingPath[][]>([]); // Redo stack (changed from single paths)
   const [currentStroke, setCurrentStroke] = useState<DrawingPath | null>(null);
   const [annotations, setAnnotations] = useState<Record<number, DrawingPath[]>>({}); // idx -> paths
   const [allowDownload, setAllowDownload] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(true);
+  // settingsOpen removed as sidebar is gone
 
   const liveRef = useRef<any>(null);
   const audioRef = useRef<{ in: AudioContext | null, out: AudioContext | null }>({ in: null, out: null });
@@ -153,6 +176,29 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
         setAnnotations(set.settings.annotations);
         if (set.settings.annotations[0]) setCurrentPaths(set.settings.annotations[0]);
       }
+      
+      // Load Tool Settings
+      if (set.settings?.toolSettings) {
+          const ts = set.settings.toolSettings;
+          if (ts.eraser) {
+              setEraserMode(ts.eraser.mode);
+              setIsEraserLocked(ts.eraser.locked);
+              // We don't set strokeWidth here immediately unless tool is eraser, 
+              // but we can't easily know initial tool. Default is cursor.
+          }
+          if (ts.laser) {
+              setLaserMode(ts.laser.mode);
+              setLaserSize(ts.laser.size);
+              setLaserColor(ts.laser.color);
+              setLaserEffect(ts.laser.effect);
+              setLaserIntensity(ts.laser.intensity);
+              setLaserDelay(ts.laser.delay);
+              setIsLaserLocked(ts.laser.locked);
+              setIsLaserGlow(ts.laser.glow);
+              setIsLaserHighlight(ts.laser.highlight);
+          }
+      }
+
       if (set.settings?.allowDownload) {
         setAllowDownload(set.settings.allowDownload);
       }
@@ -201,6 +247,9 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
     } else {
       setCurrentPaths([]);
     }
+    // Clear history to prevent undoing into previous slide
+    setHistory([]);
+    setRedoStack([]);
   }, [currentIdx, annotations]);
 
   useEffect(() => {
@@ -221,7 +270,7 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
     // Call after a small delay to ensure layout is computed
     setTimeout(handleResize, 100);
     return () => window.removeEventListener('resize', handleResize);
-  }, [mode, currentPaths, activeSidebarTab]); // Re-run when sidebar changes
+  }, [mode, currentPaths]); // Re-run when sidebar changes
 
   const [containerSize, setContainerSize] = useState({ w: 900 });
   const [isResizing, setIsResizing] = useState(false);
@@ -248,7 +297,6 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
     const handleGlobalMouseUp = () => {
       setIsDraggingContent(false);
       setIsResizing(false);
-      setIsDraggingSettings(false);
     }
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (isDraggingContent) {
@@ -257,13 +305,7 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
           y: e.clientY - dragStartRef.current.y
         });
       }
-      if (isDraggingSettings) {
-        setSettingsPos({
-          x: e.clientX - settingsDragStartRef.current.x,
-          y: e.clientY - settingsDragStartRef.current.y
-        });
-      }
-      if (isDraggingContent || isResizing || isDraggingSettings) {
+      if (isDraggingContent || isResizing) {
         e.stopPropagation();
         e.preventDefault();
       }
@@ -271,7 +313,7 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
         const deltaX = e.clientX - resizeStartRef.current.x;
         setContainerSize({ w: Math.max(400, resizeStartRef.current.w + deltaX * 2) }); // *2 because centered
       }
-      if (tool === 'laser') {
+      if (tool === 'laser' || tool === 'eraser') {
         setMousePos({ x: e.clientX, y: e.clientY });
       }
     };
@@ -281,15 +323,7 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
       window.removeEventListener('mouseup', handleGlobalMouseUp);
       window.removeEventListener('mousemove', handleGlobalMouseMove);
     };
-  }, [isDraggingContent, tool, isResizing, isDraggingSettings]);
-
-  const startSettingsDrag = (e: React.MouseEvent) => {
-    setIsDraggingSettings(true);
-    settingsDragStartRef.current = {
-      x: e.clientX - settingsPos.x,
-      y: e.clientY - settingsPos.y
-    };
-  };
+  }, [isDraggingContent, tool, isResizing]);
 
   const handleAuth = () => {
     if (activeSet?.password === passwordInput) {
@@ -371,58 +405,170 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
   // Canvas Logic - Path Based
   const renderPath = (ctx: CanvasRenderingContext2D, path: DrawingPath) => {
     if (path.points.length < 1) return; // Allow single point for text
-    ctx.beginPath();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    
+    // Pen Styles & Effects
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
 
     if (path.type === 'eraser') {
       ctx.globalCompositeOperation = 'destination-out';
       ctx.lineWidth = path.width || 40;
+      ctx.lineCap = 'round';
       ctx.strokeStyle = 'rgba(0,0,0,1)';
-    } else {
+      ctx.beginPath();
+      if (path.points.length > 0) {
+         ctx.moveTo(path.points[0].x, path.points[0].y);
+         for (let i = 1; i < path.points.length; i++) ctx.lineTo(path.points[i].x, path.points[i].y);
+         ctx.stroke();
+      }
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = path.color;
-      ctx.lineWidth = path.width || 3;
-      ctx.globalAlpha = path.opacity ?? (path.type === 'highlighter' ? 0.4 : 1.0);
-      if (path.type === 'highlighter') ctx.lineWidth = path.width || 20;
+      return;
     }
 
-    const start = path.points[0];
-    const end = path.points[path.points.length - 1];
+    if (path.type === 'laser') {
+      const isWhiteBurn = (path as any).effect === 'white_burn';
+      
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      if (path.points.length > 0) {
+          ctx.moveTo(path.points[0].x, path.points[0].y);
+          for (let i = 1; i < path.points.length; i++) ctx.lineTo(path.points[i].x, path.points[i].y);
+      }
 
-    switch (path.type) {
-      case 'line':
-        if (path.points.length < 2) return;
-        ctx.moveTo(start.x, start.y);
-        ctx.lineTo(end.x, end.y);
-        ctx.stroke();
-        break;
-      case 'rect':
-        if (path.points.length < 2) return;
-        ctx.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
-        break;
-      case 'circle':
-        if (path.points.length < 2) return;
-        const radius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
-        ctx.arc(start.x, start.y, radius, 0, 2 * Math.PI);
-        ctx.stroke();
-        break;
-      case 'text':
-        if (path.text) {
+      // Glow Effect
+      if (isLaserGlow) {
+          ctx.shadowBlur = isWhiteBurn ? 20 : 10;
+          ctx.shadowColor = path.color;
+      }
+
+      if (isWhiteBurn) {
+          // Core White
+          ctx.lineWidth = path.width;
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.stroke();
+      } else {
+          // Standard
+          ctx.lineWidth = path.width;
+          ctx.strokeStyle = path.color;
+          ctx.globalAlpha = path.opacity ?? 1.0;
+          ctx.stroke();
+      }
+      
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
+      ctx.globalAlpha = 1.0;
+      return;
+    }
+
+    // Text Handling
+    if (path.type === 'text') {
+      if (path.text) {
           ctx.font = `bold ${Math.max(12, path.width * 5)}px sans-serif`;
           ctx.fillStyle = path.color;
           ctx.globalAlpha = path.opacity ?? 1.0;
-          ctx.fillText(path.text, start.x, start.y);
-        }
-        break;
-      default: // pen, highlighter, eraser
-        if (path.points.length < 2) return;
-        ctx.moveTo(start.x, start.y);
-        for (let i = 1; i < path.points.length; i++) {
-          ctx.lineTo(path.points[i].x, path.points[i].y);
-        }
-        ctx.stroke();
-        break;
+          const p = path.points[0];
+          ctx.fillText(path.text, p.x, p.y);
+      }
+      return;
+    }
+
+    // Shape Handling
+    if (['line', 'rect', 'circle'].includes(path.type)) {
+       ctx.strokeStyle = path.color;
+       ctx.lineWidth = path.width || 3;
+       ctx.globalAlpha = path.opacity ?? 1.0;
+       ctx.lineCap = 'round';
+       ctx.lineJoin = 'round';
+       ctx.beginPath();
+       const start = path.points[0];
+       const end = path.points[path.points.length - 1];
+       if (path.type === 'line') {
+         ctx.moveTo(start.x, start.y);
+         ctx.lineTo(end.x, end.y);
+       } else if (path.type === 'rect') {
+         ctx.rect(start.x, start.y, end.x - start.x, end.y - start.y);
+       } else if (path.type === 'circle') {
+         const radius = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+         ctx.arc(start.x, start.y, radius, 0, 2 * Math.PI);
+       }
+       ctx.stroke();
+       return;
+    }
+
+    // PEN & HIGHLIGHTER RENDERING
+    ctx.strokeStyle = path.color;
+    ctx.globalAlpha = path.opacity ?? (path.type === 'highlighter' ? 0.4 : 1.0);
+    
+    if (path.type === 'highlighter') {
+       ctx.lineWidth = path.width || 20;
+       ctx.lineCap = 'square'; // Highlighter usually looks better with square/butt
+       ctx.lineJoin = 'round';
+       ctx.beginPath();
+       if (path.points.length > 0) {
+          ctx.moveTo(path.points[0].x, path.points[0].y);
+          for (let i = 1; i < path.points.length; i++) ctx.lineTo(path.points[i].x, path.points[i].y);
+       }
+       ctx.stroke();
+       return;
+    }
+
+    // STANDARD PEN / PRO / CALLIGRAPHY
+    if (path.penStyle === 'pro') {
+       // Variable width simulation based on pressure
+       if (path.points.length < 2) return;
+       
+       ctx.lineCap = 'round';
+       ctx.lineJoin = 'round';
+       
+       // Draw segments
+       for (let i = 0; i < path.points.length - 1; i++) {
+         const p1 = path.points[i];
+         const p2 = path.points[i+1];
+         const pressure = p1.pressure ?? 0.5;
+         
+         ctx.beginPath();
+         ctx.moveTo(p1.x, p1.y);
+         ctx.lineTo(p2.x, p2.y);
+         // Pressure usually 0-1. Basic width is path.width.
+         // Range: 0.2 * width to 1.8 * width
+         const w = path.width * (0.2 + pressure * 1.6);
+         ctx.lineWidth = w;
+         ctx.stroke();
+       }
+    } else if (path.penStyle === 'calligraphy') {
+       // Calligraphy: Ribbon effect (45 degree fixed angle)
+       const angle = Math.PI / 4; // 45 degrees
+       const dx = Math.cos(angle) * path.width * 0.5;
+       const dy = Math.sin(angle) * path.width * 0.5;
+       
+       ctx.fillStyle = path.color;
+       ctx.globalAlpha = path.opacity ?? 1.0;
+       
+       // Draw the ribbon as a series of quads (strip)
+       ctx.beginPath();
+       for (let i = 0; i < path.points.length - 1; i++) {
+          const p1 = path.points[i];
+          const p2 = path.points[i+1];
+          
+          // Quad defined by the "pen tip" line at p1 and p2
+          ctx.moveTo(p1.x - dx, p1.y - dy);
+          ctx.lineTo(p1.x + dx, p1.y + dy);
+          ctx.lineTo(p2.x + dx, p2.y + dy);
+          ctx.lineTo(p2.x - dx, p2.y - dy);
+       }
+       ctx.fill();
+    } else {
+       // Basic
+       ctx.lineWidth = path.width || 3;
+       ctx.lineCap = 'round';
+       ctx.lineJoin = 'round';
+       ctx.beginPath();
+       if (path.points.length > 0) {
+          ctx.moveTo(path.points[0].x, path.points[0].y);
+          for (let i = 1; i < path.points.length; i++) ctx.lineTo(path.points[i].x, path.points[i].y);
+       }
+       ctx.stroke();
     }
 
     ctx.globalCompositeOperation = 'source-over';
@@ -440,30 +586,209 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
     // Draw all committed paths
     currentPaths.forEach(path => renderPath(ctx, path));
 
+    // Draw Laser Trails
+    laserPaths.forEach(path => renderPath(ctx, path as any));
+
     // Draw current stroke
     if (currentStroke) renderPath(ctx, currentStroke);
+
+    // Eraser Preview
+    if (tool === 'eraser') {
+      const rect = canvas.getBoundingClientRect();
+      const cx = mousePos.x - rect.left;
+      const cy = mousePos.y - rect.top;
+      
+      if (cx >= -50 && cy >= -50 && cx <= canvas.width + 50 && cy <= canvas.height + 50) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, strokeWidth / 2, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineDashOffset = 5;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.lineDashOffset = 0;
+      }
+    }
+
+    // Laser Highlight (Spotlight)
+    if (tool === 'laser' && isLaserHighlight) {
+      const rect = canvas.getBoundingClientRect();
+      const cx = mousePos.x - rect.left;
+      const cy = mousePos.y - rect.top;
+      
+      // Spotlight effect: Dim everything EXCEPT the circle around cursor
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, canvas.width, canvas.height);
+      ctx.arc(cx, cy, laserSize * 6, 0, 2 * Math.PI, true); // Counter-clockwise hole
+      ctx.clip();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+    }
+
+    // Laser Cursor
+    if (tool === 'laser') {
+      const rect = canvas.getBoundingClientRect();
+      const cx = mousePos.x - rect.left;
+      const cy = mousePos.y - rect.top;
+      
+      if (cx >= -50 && cy >= -50 && cx <= canvas.width + 50 && cy <= canvas.height + 50) {
+          ctx.shadowBlur = laserEffect === 'white_burn' ? 20 : 10;
+          ctx.shadowColor = laserColor;
+          ctx.fillStyle = laserEffect === 'white_burn' ? '#FFFFFF' : laserColor;
+          ctx.globalAlpha = laserIntensity;
+          ctx.beginPath();
+          ctx.arc(cx, cy, laserSize * 1.5, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 1.0;
+      }
+    }
   };
 
-  // Sync Redraw when paths change
-  useEffect(() => {
-    redrawCanvas();
-  }, [currentPaths, currentStroke]);
+  // Ref to hold activeSet to avoid dependency loop in auto-save
+  const activeSetRef = useRef(activeSet);
+  useEffect(() => { activeSetRef.current = activeSet; }, [activeSet]);
 
-  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
-    if (tool === 'cursor' || tool === 'laser') return;
+  // Auto-save Tool Settings
+  useEffect(() => {
+    const currentSet = activeSetRef.current;
+    if (!currentSet) return;
+
+    const timeoutId = setTimeout(async () => {
+      const prevSettings = currentSet.settings?.toolSettings || {};
+      const prevEraser = prevSettings.eraser || {};
+      
+      // Determine Eraser Size: Use current if tool is eraser, else use saved
+      const currentEraserSize = tool === 'eraser' ? strokeWidth : (prevEraser.size || 40);
+
+      const newToolSettings = {
+        eraser: {
+          mode: eraserMode,
+          size: currentEraserSize,
+          locked: isEraserLocked
+        },
+        laser: {
+          mode: laserMode,
+          size: laserSize,
+          color: laserColor,
+          effect: laserEffect,
+          intensity: laserIntensity,
+          delay: laserDelay,
+          locked: isLaserLocked,
+          glow: isLaserGlow,
+          highlight: isLaserHighlight
+        }
+      };
+
+      // Simple equality check to avoid unnecessary saves
+      if (JSON.stringify(prevSettings) === JSON.stringify(newToolSettings)) {
+        return;
+      }
+
+      const updatedSettings = { 
+        ...(currentSet.settings || {}), 
+        toolSettings: newToolSettings 
+      };
+
+      // We update the DB. We also ideally update the ref's currentSet to avoid re-saving same data
+      // But we can't mutate ref.current in a way that affects state.
+      // However, since we fetch from ref.current next time, if we don't update it, we might compare against old data.
+      // But activeSet state won't update automatically unless we call setActiveSet.
+      // Calling setActiveSet might cause re-renders. 
+      // Let's just save. The server handles it.
+      await storageService.saveSet({ ...currentSet, settings: updatedSettings });
+      
+    }, 2000); // 2 second debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    eraserMode, isEraserLocked,
+    laserMode, laserSize, laserColor, laserEffect, laserIntensity, laserDelay, isLaserLocked, isLaserGlow, isLaserHighlight,
+    tool, strokeWidth // Needed to capture eraser size changes
+  ]);
+
+  const checkAndEraseWholeStroke = (x: number, y: number) => {
+    const eraserRadius = strokeWidth / 2;
+    // Iterate backwards to find top-most element first
+    for (let i = currentPaths.length - 1; i >= 0; i--) {
+      const path = currentPaths[i];
+      let hit = false;
+      
+      if (path.type === 'text' && path.points.length > 0) {
+         const p = path.points[0];
+         // Simple hit test for text anchor
+         if (Math.sqrt(Math.pow(p.x - x, 2) + Math.pow(p.y - y, 2)) < eraserRadius + 20) {
+            hit = true;
+         }
+      } else {
+         // Check points for lines/shapes
+         for (const p of path.points) {
+            if (Math.sqrt(Math.pow(p.x - x, 2) + Math.pow(p.y - y, 2)) < eraserRadius + (path.width || 5) / 2) {
+               hit = true;
+               break;
+            }
+         }
+      }
+
+      if (hit) {
+         // Save history before erasing
+         setHistory(prev => [...prev, currentPaths]);
+         setRedoStack([]);
+         
+         const newPaths = [...currentPaths];
+         newPaths.splice(i, 1);
+         setCurrentPaths(newPaths);
+         return; // Erase one at a time per event tick to avoid clearing everything instantly if overlapping
+      }
+    }
+  };
+
+  const startDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    // If Point mode laser, do nothing (cursor tracks it)
+    if (tool === 'laser' && laserMode === 'point') return;
+    
+    if (tool === 'cursor') return;
+    
+    // Update mouse position for eraser cursor tracking during capture
+    if (tool === 'eraser' || tool === 'laser') {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    }
+
+    e.currentTarget.setPointerCapture(e.pointerId);
     setIsDrawing(true);
 
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = ('clientX' in e ? e.clientX : e.touches[0].clientX) - rect.left;
-    const y = ('clientY' in e ? e.clientY : e.touches[0].clientY) - rect.top;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (tool === 'eraser' && eraserMode === 'whole') {
+       checkAndEraseWholeStroke(x, y);
+       return;
+    }
+    
+    // Apply Smart Inking: Ink Pressure
+    // If pressure toggle is ON, use device pressure. If OFF, use default 0.5.
+    // For 'Basic' pen, we might always want fixed pressure (0.5) regardless of toggle, 
+    // but the user description implies 'Pro' is the one for variable width.
+    // So if tool is 'pen' and style is 'basic', we force 0.5.
+    // If style is 'pro', we check smartOpts.pressure.
+    let pressure = 0.5;
+    if (tool === 'pen' && penStyle === 'pro' && smartOpts.pressure) {
+        pressure = e.pressure !== 0.5 && e.pressure !== 0 ? e.pressure : 0.5;
+    }
 
     if (tool === 'text') {
       const text = prompt("Enter text:");
       if (text) {
         const newPath: DrawingPath = {
-          points: [{ x, y }],
+          points: [{ x, y, pressure }],
           color: strokeColor,
           width: strokeWidth,
           type: 'text',
@@ -477,39 +802,144 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
     }
 
     setCurrentStroke({
-      points: [{ x, y }],
-      color: strokeColor,
-      width: tool === 'highlighter' ? 20 : strokeWidth,
+      points: [{ x, y, pressure }],
+      color: tool === 'laser' ? laserColor : strokeColor,
+      width: tool === 'laser' ? laserSize : (tool === 'highlighter' ? 20 : (tool === 'eraser' ? strokeWidth : strokeWidth)),
       type: tool,
-      opacity
+      opacity: tool === 'laser' ? laserIntensity : opacity,
+      penStyle
     });
   };
 
-  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+  const draw = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    // Update mouse position for eraser/laser cursor tracking
+    if (tool === 'eraser' || tool === 'laser') {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    }
+
     if (!isDrawing || !currentStroke) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = ('clientX' in e ? e.clientX : e.touches[0].clientX) - rect.left;
-    const y = ('clientY' in e ? e.clientY : e.touches[0].clientY) - rect.top;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    let pressure = 0.5;
+    if (tool === 'pen' && penStyle === 'pro' && smartOpts.pressure) {
+        pressure = e.pressure !== 0.5 && e.pressure !== 0 ? e.pressure : 0.5;
+    }
 
     if (['line', 'rect', 'circle'].includes(tool)) {
-      setCurrentStroke(prev => prev ? { ...prev, points: [prev.points[0], { x, y }] } : null);
+      setCurrentStroke(prev => prev ? { ...prev, points: [prev.points[0], { x, y, pressure }] } : null);
     } else {
-      setCurrentStroke(prev => prev ? { ...prev, points: [...prev.points, { x, y }] } : null);
+      setCurrentStroke(prev => prev ? { ...prev, points: [...prev.points, { x, y, pressure }] } : null);
     }
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    
+    if (tool === 'eraser' && eraserMode === 'whole') {
+      setIsDrawing(false);
+      return;
+    }
+
     if (isDrawing && currentStroke) {
       setIsDrawing(false);
-      const newPaths = [...currentPaths, currentStroke];
+
+      // Handle Laser Trail
+      if (tool === 'laser') {
+          if (laserMode === 'trail') {
+            const laserPath: LaserPath = {
+                points: currentStroke.points,
+                color: currentStroke.color,
+                width: currentStroke.width,
+                timestamp: Date.now(),
+                type: 'trail',
+                effect: laserEffect
+            };
+            setLaserPaths(prev => [...prev, laserPath]);
+          }
+          setCurrentStroke(null);
+          return;
+      }
+      
+      let finalStroke = currentStroke;
+
+      // Smart Inking Logic
+      if (currentStroke.type === 'pen' && currentStroke.points.length > 5) {
+        const start = currentStroke.points[0];
+        const end = currentStroke.points[currentStroke.points.length - 1];
+        const dist = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+        
+        // Ink to Line
+        if (smartOpts.line) {
+          if (dist > 20) { // Ignore small dots
+             // Calculate max deviation
+             let maxDev = 0;
+             for (const p of currentStroke.points) {
+               const dev = Math.abs((end.y - start.y) * p.x - (end.x - start.x) * p.y + end.x * start.y - end.y * start.x) / dist;
+               if (dev > maxDev) maxDev = dev;
+             }
+             if (maxDev < 20) { // Tolerance
+               finalStroke = { ...currentStroke, type: 'line', points: [start, end] };
+             }
+          }
+        }
+
+        // Ink to Shape (Auto-close)
+        if (smartOpts.shape) {
+           // Calculate Bounding Box
+           let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+           currentStroke.points.forEach(p => {
+              if (p.x < minX) minX = p.x;
+              if (p.x > maxX) maxX = p.x;
+              if (p.y < minY) minY = p.y;
+              if (p.y > maxY) maxY = p.y;
+           });
+           
+           const w = maxX - minX;
+           const h = maxY - minY;
+           const pathLength = currentStroke.points.reduce((acc, p, i, arr) => {
+              if (i === 0) return 0;
+              return acc + Math.sqrt(Math.pow(p.x - arr[i-1].x, 2) + Math.pow(p.y - arr[i-1].y, 2));
+           }, 0);
+           
+           // Check closure
+           const isClosed = dist < Math.max(20, pathLength * 0.1); // Close if endpoints are near
+           
+           if (isClosed && w > 20 && h > 20) {
+              const ratio = pathLength / (w + h);
+              
+              // Rectangle: Perimeter = 2(w+h) => ratio ~ 2.0
+              // Circle: Perimeter = PI * d ~ PI * (w+h)/2 => ratio ~ 1.57
+              
+              if (Math.abs(ratio - 2.0) < 0.3) {
+                  // It's a Rect
+                  finalStroke = { ...currentStroke, type: 'rect', points: [{x: minX, y: minY}, {x: maxX, y: maxY}] };
+               } else if (Math.abs(ratio - 1.57) < 0.3) {
+                  // It's a Circle
+                  // Convert BBox to Center/Radius format for renderPath
+                  const cx = (minX + maxX) / 2;
+                  const cy = (minY + maxY) / 2;
+                  const r = (maxX - minX) / 2;
+                  finalStroke = { ...currentStroke, type: 'circle', points: [{x: cx, y: cy}, {x: cx + r, y: cy}] };
+               } else {
+                  // Just close the loop
+                  finalStroke = { ...currentStroke, points: [...currentStroke.points, start] };
+               }
+           }
+        }
+      }
+
+      // Save history before adding new stroke
+      setHistory(prev => [...prev, currentPaths]);
+      setRedoStack([]);
+
+      const newPaths = [...currentPaths, finalStroke];
       setCurrentPaths(newPaths);
       setCurrentStroke(null);
-
-      // Removed Auto-Save to DB to allow "Next (Skip Save)" option
-      // We only update local path state here.
     }
   };
 
@@ -524,11 +954,43 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
   };
 
   const clearCanvas = () => {
-    setCurrentPaths([]);
+    if (currentPaths.length > 0) {
+      setHistory(prev => [...prev, currentPaths]);
+      setRedoStack([]);
+      setCurrentPaths([]);
+    }
     // Removed Auto-Save to DB. 
     // If user clears and clicks "Save & Next", it will save empty array.
     // If user clears and clicks "Next", it will revert to previous state (if any).
   };
+
+  const clearAllSlides = async () => {
+    if (window.confirm("Are you sure you want to clear ALL annotations from ALL slides? This cannot be undone.")) {
+        setAnnotations({});
+        setCurrentPaths([]);
+        setHistory([]);
+        setRedoStack([]);
+        await saveProgress({});
+    }
+  };
+
+  const clearLaser = () => setLaserPaths([]);
+
+  // Laser Cleanup Effect
+  useEffect(() => {
+    if (laserPaths.length === 0) return;
+    const interval = setInterval(() => {
+        const now = Date.now();
+        setLaserPaths(prev => {
+            const valid = prev.filter(p => now - p.timestamp < laserDelay * 1000);
+            if (valid.length !== prev.length) {
+                return valid;
+            }
+            return prev;
+        });
+    }, 100);
+    return () => clearInterval(interval);
+  }, [laserPaths, laserDelay]);
 
   const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -796,7 +1258,19 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
   }
 
   const undo = () => {
-    setCurrentPaths(prev => prev.slice(0, -1));
+    if (history.length === 0) return;
+    const previousState = history[history.length - 1];
+    setRedoStack(prev => [...prev, currentPaths]);
+    setHistory(prev => prev.slice(0, -1));
+    setCurrentPaths(previousState);
+  };
+
+  const redo = () => {
+    if (redoStack.length === 0) return;
+    const nextState = redoStack[redoStack.length - 1];
+    setHistory(prev => [...prev, currentPaths]);
+    setRedoStack(prev => prev.slice(0, -1));
+    setCurrentPaths(nextState);
   };
 
   return (
@@ -814,86 +1288,113 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
       {!isBlackout && (
         <canvas
           ref={canvasRef}
-          className={`absolute inset-0 z-30 touch-none ${tool === 'cursor' ? 'pointer-events-none' : 'cursor-crosshair'}`}
-          onMouseDown={startDrawing}
-          onMouseMove={draw}
-          onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
-          onTouchStart={startDrawing}
-          onTouchMove={draw}
-          onTouchEnd={stopDrawing}
+          className={`absolute inset-0 z-30 touch-none ${tool === 'cursor' ? 'pointer-events-none' : (tool === 'eraser' || tool === 'laser' ? 'cursor-none' : 'cursor-crosshair')}`}
+          onPointerDown={startDrawing}
+          onPointerMove={draw}
+          onPointerUp={stopDrawing}
+          onPointerLeave={stopDrawing}
         />
+      )}
+
+      {/* LASER POINTER */}
+      {tool === 'laser' && (
+        <div 
+          className="pointer-events-none fixed z-50 rounded-full blur-[2px] mix-blend-screen transition-all duration-75"
+          style={{ 
+            left: mousePos.x, 
+            top: mousePos.y, 
+            transform: 'translate(-50%, -50%)',
+            width: `${strokeWidth}px`,
+            height: `${strokeWidth}px`,
+            backgroundColor: strokeColor,
+            boxShadow: `0 0 ${strokeWidth * 2}px ${strokeColor}, 0 0 ${strokeWidth * 4}px ${strokeColor}`,
+            opacity: opacity
+          }}
+        />
+      )}
+
+      {/* ERASER CURSOR PREVIEW */}
+      {tool === 'eraser' && (
+        <div 
+          className="pointer-events-none fixed z-50 rounded-full border-2 border-dashed border-white/80 mix-blend-difference transition-all duration-75 flex items-center justify-center"
+          style={{ 
+            left: mousePos.x, 
+            top: mousePos.y, 
+            transform: 'translate(-50%, -50%)',
+            width: `${strokeWidth}px`,
+            height: `${strokeWidth}px`,
+            boxShadow: '0 0 0 1px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.2)'
+          }}
+        >
+          {/* Center Crosshair for precision */}
+          <div className="w-1 h-1 bg-white rounded-full mix-blend-difference" />
+        </div>
       )}
 
       {/* FLOATING QUICK TOOLBAR (BOTTOM CENTER) */}
       {!isBlackout && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-4 p-2 pl-4 pr-2 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl animate-in slide-in-from-bottom-8 duration-500">
-          
-          {/* Slide Navigation */}
-          <div className="flex items-center gap-1 pr-4 border-r border-white/10">
-            <button 
-              onClick={() => { if (currentIdx > 0) { setCurrentIdx(currentIdx - 1); setShowAns(false); setShowSol(false); } }}
-              disabled={currentIdx === 0}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-30 transition-all"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <div className="flex flex-col items-center min-w-[3rem]">
-              <span className="text-xs font-black text-white">{currentIdx + 1} <span className="text-slate-500">/ {activeQuestions.length}</span></span>
-            </div>
-            <button 
-              onClick={() => { if (currentIdx < activeQuestions.length - 1) { setCurrentIdx(currentIdx + 1); setShowAns(false); setShowSol(false); } else { setMode('summary'); } }}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-all"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-
-          {/* Quick Tools */}
-          <div className="flex items-center gap-2">
-            {[
-              { id: 'cursor', icon: MousePointer2, label: 'Select' },
-              { id: 'pen', icon: PenTool, label: 'Pen' },
-              { id: 'highlighter', icon: Hash, label: 'Marker' },
-              { id: 'eraser', icon: Eraser, label: 'Erase' },
-              { id: 'laser', icon: Disc, label: 'Laser' },
-            ].map(t => (
-               <button
-                  key={t.id}
-                  onClick={() => setTool(t.id as any)}
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${tool === t.id ? 'bg-primary text-white shadow-lg shadow-primary/25 scale-110' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`}
-                  title={t.label}
-                >
-                  <t.icon size={20} />
-                </button>
-            ))}
-          </div>
-
-          {/* Color Picker (Mini) */}
-          {(tool === 'pen' || tool === 'highlighter') && (
-            <div className="flex items-center gap-2 pl-4 border-l border-white/10 animate-in fade-in slide-in-from-left-2 duration-300">
-              {['#ef4444', '#22c55e', '#3b82f6', '#ffffff', '#eab308'].map(c => (
-                <button
-                  key={c}
-                  onClick={() => setStrokeColor(c)}
-                  className={`w-6 h-6 rounded-full border-2 transition-all ${strokeColor === c ? 'border-white scale-125 shadow-lg' : 'border-transparent hover:scale-110'}`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2 pl-4 border-l border-white/10">
-             <button onClick={undo} className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:bg-white/10 hover:text-white transition-all" title="Undo">
-               <RotateCcw size={18} />
+        <FloatingToolbar
+          tool={tool}
+          setTool={setTool}
+          strokeColor={strokeColor}
+          setStrokeColor={setStrokeColor}
+          strokeWidth={strokeWidth}
+          setStrokeWidth={setStrokeWidth}
+          opacity={opacity}
+          setOpacity={setOpacity}
+          undo={undo}
+          redo={redo}
+          clear={clearCanvas}
+          toggleFullscreen={toggleFullscreen}
+          isFullscreen={isFullscreen}
+          nextSlide={() => { if (currentIdx < activeQuestions.length - 1) { setCurrentIdx(currentIdx + 1); setShowAns(false); setShowSol(false); } else { setMode('summary'); } }}
+          prevSlide={() => { if (currentIdx > 0) { setCurrentIdx(currentIdx - 1); setShowAns(false); setShowSol(false); } }}
+          currentSlide={currentIdx}
+          totalSlides={activeQuestions.length}
+          onExit={onExit}
+          penStyle={penStyle}
+          setPenStyle={setPenStyle}
+          smartOpts={smartOpts}
+          setSmartOpts={setSmartOpts}
+          eraserMode={eraserMode}
+          setEraserMode={setEraserMode}
+          isEraserLocked={isEraserLocked}
+          setIsEraserLocked={setIsEraserLocked}
+          laserMode={laserMode}
+          setLaserMode={setLaserMode}
+          laserSize={laserSize}
+          setLaserSize={setLaserSize}
+          laserColor={laserColor}
+          setLaserColor={setLaserColor}
+          laserEffect={laserEffect}
+          setLaserEffect={setLaserEffect}
+          laserIntensity={laserIntensity}
+          setLaserIntensity={setLaserIntensity}
+          laserDelay={laserDelay}
+          setLaserDelay={setLaserDelay}
+          isLaserLocked={isLaserLocked}
+          setIsLaserLocked={setIsLaserLocked}
+          isLaserGlow={isLaserGlow}
+          setIsLaserGlow={setIsLaserGlow}
+          isLaserHighlight={isLaserHighlight}
+          setIsLaserHighlight={setIsLaserHighlight}
+          clearLaser={() => setLaserPaths([])}
+          clearAllSlides={clearAllSlides}
+          savedEraserSize={activeSet?.settings?.toolSettings?.eraser?.size}
+          extraTools={
+            <>
+             <button onClick={() => setShowAns(!showAns)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${showAns ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`} title={showAns ? "Hide Answer" : "Show Answer"}>
+                {showAns ? <EyeOff size={20} /> : <Eye size={20} />}
              </button>
-             <button onClick={() => setShowAns(!showAns)} className={`h-9 px-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${showAns ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-emerald-500 hover:bg-slate-700'}`}>
-                {showAns ? 'Hide Ans' : 'Show Ans'}
+             <button onClick={() => setWhiteboardMode(!whiteboardMode)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${whiteboardMode ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`} title={whiteboardMode ? "Exit Whiteboard" : "Whiteboard"}>
+                <Presentation size={20} />
              </button>
-          </div>
-
-        </div>
+             <button onClick={() => setShowGrid(!showGrid)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${showGrid ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`} title="Grid View">
+                <Grid size={20} />
+             </button>
+            </>
+          }
+        />
       )}
 
       <header className="absolute top-0 left-0 right-0 h-12 flex items-center justify-between px-3 sm:px-4 md:px-6 z-[40] bg-slate-950/90 border-b border-white/5">
@@ -954,7 +1455,7 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
 
 
       {/* 5. CINEMATIC CONTENT CANVAS - DRAGGABLE */}
-      <main className={`flex-1 relative flex items-center justify-center z-10 px-2 sm:px-3 md:px-6 lg:px-10 overflow-hidden transition-all duration-300 ${settingsOpen ? 'mr-[320px]' : ''}`}>
+      <main className={`flex-1 relative flex items-center justify-center z-10 px-2 sm:px-3 md:px-6 lg:px-10 overflow-hidden transition-all duration-300`}>
         <div
           className={`animate-in fade-in zoom-in-95 duration-700 transition-transform ${tool === 'cursor' ? 'cursor-grab active:cursor-grabbing' : ''}`}
           style={{
@@ -964,11 +1465,15 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
           }}
           onMouseDown={startContentDrag}
         >
-          {/* DRAG HANDLE */}
+          {/* DRAG HANDLE - CLEANER */}
           {tool === 'cursor' && (
-            <div className="absolute -top-9 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 bg-black/40 rounded-full border border-white/10 text-[8px] font-black text-white/70 uppercase tracking-[0.2em] cursor-grab active:cursor-grabbing select-none">
-              <Move size={12} className="text-primary" />
-              <span>Move Slide</span>
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 group/handle cursor-grab active:cursor-grabbing">
+              <div className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 shadow-lg hover:bg-black/80 transition-all">
+                 <Move size={14} className="text-blue-400" />
+                 <span className="text-[9px] font-bold text-white/80 uppercase tracking-widest opacity-0 w-0 group-hover/handle:opacity-100 group-hover/handle:w-auto overflow-hidden transition-all whitespace-nowrap">
+                   Drag Slide
+                 </span>
+              </div>
             </div>
           )}
 
@@ -1051,232 +1556,6 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
           )}
         </div>
       </main>
-
-      {/* RIGHT SIDEBAR TOOL PANEL */}
-      <div className={`fixed top-12 right-0 bottom-0 w-[320px] bg-slate-950/95 backdrop-blur-xl border-l border-white/10 z-50 flex flex-col transition-transform duration-300 ease-out ${settingsOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        
-        {/* Sidebar Toggle Handle (when open) */}
-        <button 
-          onClick={() => setSettingsOpen(false)}
-          className="absolute top-1/2 -left-3 w-6 h-12 bg-slate-800 rounded-l-lg border-y border-l border-white/10 flex items-center justify-center text-slate-400 hover:text-white"
-        >
-          <ChevronRight size={14} />
-        </button>
-
-        {/* TABS */}
-        <div className="flex items-center border-b border-white/10 bg-slate-900/50">
-          {(['draw', 'insert', 'measure'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveSidebarTab(tab)}
-              className={`flex-1 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeSidebarTab === tab ? 'bg-primary/10 text-primary border-b-2 border-primary' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* TAB CONTENT */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-8 custom-scrollbar">
-          
-          {/* DRAW TAB */}
-          {activeSidebarTab === 'draw' && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-              {/* Main Tools */}
-              <div className="space-y-3">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Tools</label>
-                <div className="grid grid-cols-4 gap-3">
-                  {[
-                    { id: 'cursor', icon: MousePointer2, label: 'Select' },
-                    { id: 'pen', icon: PenTool, label: 'Pen' },
-                    { id: 'highlighter', icon: Hash, label: 'Marker' },
-                    { id: 'eraser', icon: Eraser, label: 'Erase' },
-                    { id: 'laser', icon: Disc, label: 'Laser' },
-                  ].map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => setTool(t.id as any)}
-                      className={`aspect-square rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all ${tool === t.id ? 'bg-primary text-white shadow-lg shadow-primary/25 ring-2 ring-primary/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'}`}
-                    >
-                      <t.icon size={20} />
-                      <span className="text-[9px] font-bold uppercase">{t.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Stroke Properties */}
-              <div className="space-y-6">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Stroke Width</label>
-                    <span className="text-[10px] font-bold text-slate-300">{strokeWidth}px</span>
-                  </div>
-                  <input 
-                    type="range" min="1" max="20" value={strokeWidth} 
-                    onChange={(e) => setStrokeWidth(parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                   <div className="flex items-center justify-between">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Opacity</label>
-                    <span className="text-[10px] font-bold text-slate-300">{Math.round(opacity * 100)}%</span>
-                  </div>
-                  <input 
-                    type="range" min="10" max="100" value={opacity * 100} 
-                    onChange={(e) => setOpacity(parseInt(e.target.value) / 100)}
-                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                  />
-                </div>
-
-                 <div className="space-y-3">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Colors</label>
-                  <div className="grid grid-cols-5 gap-3">
-                    {['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#ffffff', '#94a3b8', '#000000'].map(c => (
-                      <button
-                        key={c}
-                        onClick={() => setStrokeColor(c)}
-                        className={`w-full aspect-square rounded-xl border-2 transition-all ${strokeColor === c ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
-                        style={{ backgroundColor: c }}
-                      />
-                    ))}
-                    <div className="relative w-full aspect-square rounded-xl overflow-hidden border border-white/10 group cursor-pointer">
-                       <div className="absolute inset-0 bg-gradient-to-br from-red-500 via-green-500 to-blue-500 opacity-50 group-hover:opacity-100 transition-opacity" />
-                       <input type="color" value={strokeColor} onChange={(e) => setStrokeColor(e.target.value)} className="absolute inset-0 w-[150%] h-[150%] -top-1/4 -left-1/4 p-0 cursor-pointer opacity-0" />
-                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                         <PaletteIcon size={16} className="text-white" />
-                       </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* INSERT TAB */}
-          {activeSidebarTab === 'insert' && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-               <div className="space-y-3">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Shapes</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { id: 'line', icon: Minus, label: 'Line' },
-                    { id: 'rect', icon: Square, label: 'Rectangle' },
-                    { id: 'circle', icon: Circle, label: 'Circle' },
-                    { id: 'text', icon: Type, label: 'Text Box' },
-                  ].map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => setTool(t.id as any)}
-                      className={`h-16 rounded-xl flex flex-col items-center justify-center gap-2 transition-all ${tool === t.id ? 'bg-primary text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'}`}
-                    >
-                      <t.icon size={20} />
-                      <span className="text-[10px] font-bold uppercase">{t.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-               <div className="space-y-3">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Media</label>
-                 <button onClick={() => bgInputRef.current?.click()} className="w-full h-14 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-dashed border-slate-600 flex items-center justify-center gap-3 transition-all hover:border-primary hover:text-primary">
-                    <ImageIcon size={18} />
-                    <span className="text-xs font-bold uppercase tracking-wider">Upload Background</span>
-                 </button>
-               </div>
-               
-               <div className="space-y-3">
-                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Board Controls</label>
-                 <button
-                  onClick={() => setWhiteboardMode(v => !v)}
-                  className={`w-full h-12 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between ${whiteboardMode ? 'bg-yellow-400 text-slate-900' : 'bg-slate-800 text-slate-100 hover:bg-slate-700'}`}
-                >
-                  <span>Whiteboard Mode</span>
-                  <div className={`w-8 h-4 rounded-full p-0.5 ${whiteboardMode ? 'bg-black/20' : 'bg-black/40'}`}>
-                    <div className={`w-3 h-3 rounded-full bg-white transition-all ${whiteboardMode ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </div>
-                </button>
-                 <button
-                  onClick={() => setShowGrid(v => !v)}
-                  className="w-full h-12 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-between"
-                >
-                  <span>Slide Grid</span>
-                  <Grid size={16} />
-                </button>
-               </div>
-            </div>
-          )}
-
-           {/* MEASURE TAB */}
-          {activeSidebarTab === 'measure' && (
-             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="p-8 text-center border-2 border-dashed border-slate-800 rounded-2xl flex flex-col items-center gap-4">
-                  <div className="w-12 h-12 bg-slate-800 rounded-full flex items-center justify-center text-slate-500">
-                    <Sliders size={20} />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Coming Soon</p>
-                    <p className="text-[10px] text-slate-600">Ruler, Protractor & Compass</p>
-                  </div>
-                </div>
-             </div>
-          )}
-
-        </div>
-
-        {/* FOOTER NAV */}
-        <div className="p-5 bg-slate-950 border-t border-white/10 space-y-4">
-           {/* Slide Nav */}
-           <div className="flex items-center gap-2">
-              <button
-                onClick={() => { if (currentIdx > 0) { setCurrentIdx(currentIdx - 1); setShowAns(false); setShowSol(false); } }}
-                disabled={currentIdx === 0}
-                className="h-10 flex-1 bg-slate-800 rounded-lg flex items-center justify-center text-slate-300 hover:bg-slate-700 disabled:opacity-50"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <div className="flex flex-col items-center w-24">
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Slide</span>
-                <span className="text-lg font-black text-white">{currentIdx + 1}<span className="text-slate-600 text-sm"> / {activeQuestions.length}</span></span>
-              </div>
-              <button
-                onClick={() => { if (currentIdx < activeQuestions.length - 1) { setCurrentIdx(currentIdx + 1); setShowAns(false); setShowSol(false); } else { setMode('summary'); } }}
-                className="h-10 flex-1 bg-primary rounded-lg flex items-center justify-center text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
-              >
-                <ChevronRight size={18} />
-              </button>
-           </div>
-
-           {/* Actions */}
-           <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => setShowAns(!showAns)} className={`h-10 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${showAns ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-slate-800 text-emerald-500 hover:bg-slate-700'}`}>
-                {showAns ? 'Hide Answer' : 'Show Answer'}
-              </button>
-               <button onClick={() => setShowSol(!showSol)} className={`h-10 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${showSol ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-800 text-blue-500 hover:bg-slate-700'}`}>
-                {showSol ? 'Hide Solution' : 'Solution'}
-              </button>
-           </div>
-           
-           <div className="pt-2 border-t border-white/5">
-              <button onClick={startAssistant} className={`w-full h-11 rounded-xl flex items-center justify-center gap-2 transition-all ${isLiveActive ? 'bg-accent-pink text-white animate-pulse shadow-lg shadow-accent-pink/20' : 'bg-slate-800 text-accent-pink border border-accent-pink/30 hover:bg-slate-700'}`}>
-                 <Sparkles size={16} />
-                 <span className="text-[10px] font-black uppercase tracking-wider">{isLiveActive ? 'Listening...' : 'Teacher AI'}</span>
-              </button>
-           </div>
-        </div>
-      </div>
-
-      {/* TOGGLE BUTTON (When Closed) */}
-      {!settingsOpen && (
-        <button 
-          onClick={() => setSettingsOpen(true)}
-          className="fixed top-1/2 right-0 -translate-y-1/2 w-8 h-16 bg-slate-900 border-y border-l border-white/10 rounded-l-xl flex items-center justify-center text-primary shadow-xl z-40 hover:w-10 transition-all"
-        >
-          <ChevronLeft size={20} />
-        </button>
-      )}
 
       {!isWriting && isLiveActive && (
         <div className="fixed top-24 right-10 w-96 glass p-8 rounded-[40px] border border-white/10 z-[100] animate-in slide-in-from-right-8 duration-500">
