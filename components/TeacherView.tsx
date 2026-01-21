@@ -199,8 +199,10 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
           }
       }
 
-      if (set.settings?.allowDownload) {
+      if (set.settings?.allowDownload !== undefined) {
         setAllowDownload(set.settings.allowDownload);
+      } else {
+        setAllowDownload(true); // Default to enabled
       }
       setBgImage(set.settings?.backgroundImage || null);
 
@@ -654,6 +656,42 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
   const activeSetRef = useRef(activeSet);
   useEffect(() => { activeSetRef.current = activeSet; }, [activeSet]);
 
+  // Helper to save current slide state before navigation
+  const saveCurrentSlideState = () => {
+      const updatedAnnotations = { ...annotations, [currentIdx]: currentPaths };
+      setAnnotations(updatedAnnotations);
+      // Fire and forget save to DB
+      saveProgress(updatedAnnotations);
+      return updatedAnnotations;
+  };
+
+  const goToSlide = (index: number) => {
+      saveCurrentSlideState();
+      setCurrentIdx(index);
+      setShowAns(false);
+      setShowSol(false);
+  };
+
+  const handleNextSlide = () => {
+      if (currentIdx < activeQuestions.length - 1) {
+          goToSlide(currentIdx + 1);
+      } else {
+          saveCurrentSlideState();
+          setMode('summary');
+      }
+  };
+
+  const handlePrevSlide = () => {
+      if (currentIdx > 0) {
+          goToSlide(currentIdx - 1);
+      }
+  };
+
+  const handleExit = () => {
+      saveCurrentSlideState();
+      onExit();
+  };
+
   // Auto-save Tool Settings
   useEffect(() => {
     const currentSet = activeSetRef.current;
@@ -661,10 +699,10 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
 
     const timeoutId = setTimeout(async () => {
       const prevSettings = currentSet.settings?.toolSettings || {};
-      const prevEraser = prevSettings.eraser || {};
+      const prevEraser = prevSettings.eraser;
       
       // Determine Eraser Size: Use current if tool is eraser, else use saved
-      const currentEraserSize = tool === 'eraser' ? strokeWidth : (prevEraser.size || 40);
+      const currentEraserSize = tool === 'eraser' ? strokeWidth : (prevEraser ? prevEraser.size : 40);
 
       const newToolSettings = {
         eraser: {
@@ -1235,10 +1273,10 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
         </div>
 
         <div className="space-y-3">
-          <Button onClick={() => { setTimer(0); setCurrentIdx(0); setMode('present'); }} className="w-full bg-indigo-600 text-white py-4 h-auto font-bold uppercase tracking-wider">
+          <Button onClick={() => { setTimer(0); goToSlide(0); setMode('present'); }} className="w-full bg-indigo-600 text-white py-4 h-auto font-bold uppercase tracking-wider">
             Restart Session
           </Button>
-          <Button onClick={onExit} className="w-full bg-white/5 hover:bg-white/10 text-slate-300 py-4 h-auto font-bold uppercase tracking-wider">
+          <Button onClick={handleExit} className="w-full bg-white/5 hover:bg-white/10 text-slate-300 py-4 h-auto font-bold uppercase tracking-wider">
             Return to Dashboard
           </Button>
         </div>
@@ -1446,7 +1484,7 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
           >
             <Maximize size={16} />
           </button>
-          <button onClick={onExit} className="w-8 h-8 flex items-center justify-center bg-error/10 rounded-lg border border-error/30 text-error hover:bg-error hover:text-white transition-all">
+          <button onClick={handleExit} className="w-8 h-8 flex items-center justify-center bg-error/10 rounded-lg border border-error/30 text-error hover:bg-error hover:text-white transition-all">
             <X size={16} />
           </button>
           <input type="file" accept="image/*" ref={bgInputRef} className="hidden" onChange={handleBgUpload} />
@@ -1576,22 +1614,53 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
       )}
 
       {showGrid && (
-        <div className="fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-8">
-          <div className="bg-slate-900 border border-white/10 rounded-[40px] p-8 max-w-4xl w-full max-h-[80vh] overflow-y-auto relative">
-            <button onClick={() => setShowGrid(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:text-white"><X size={24} /></button>
-            <div className="grid grid-cols-4 md:grid-cols-6 Gap-4">
-              {activeQuestions.map((_q, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => { setCurrentIdx(idx); setShowGrid(false); setShowAns(false); setShowSol(false); clearCanvas(); }}
-                  className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all relative ${currentIdx === idx ? 'bg-primary border-primary text-white' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
-                >
-                  <span className="text-2xl font-black">{idx + 1}</span>
-                  {bookmarks.has(idx) && <Bookmark size={12} className="absolute top-2 right-2 fill-amber-400 text-amber-400" />}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+           {/* Backdrop with blur */}
+           <div 
+               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+               onClick={() => setShowGrid(false)}
+           />
+           
+           {/* Main Container - Professional Glassmorphism */}
+           <div className="relative bg-[#0f1117]/95 backdrop-blur-2xl border border-white/10 rounded-[32px] p-8 max-w-3xl w-full shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-300">
+             
+             {/* Close Button */}
+             <button 
+                onClick={() => setShowGrid(false)}
+                className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"
+             >
+                <X size={20} />
+             </button>
+
+             {/* Grid Container */}
+             <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
+               {activeQuestions.map((_q, idx) => {
+                 const isActive = currentIdx === idx;
+                 const isBookmarked = bookmarks.has(idx);
+
+                 return (
+                    <button
+                      key={idx}
+                      onClick={() => { setCurrentIdx(idx); setShowGrid(false); setShowAns(false); setShowSol(false); clearCanvas(); }}
+                      className={`
+                          h-12 rounded-2xl font-bold text-sm transition-all duration-200 flex items-center justify-center relative
+                          ${isActive 
+                              ? 'bg-[#3b82f6] text-white shadow-[0_0_20px_rgba(59,130,246,0.4)] z-10 scale-105' 
+                              : 'bg-[#1e293b]/50 text-slate-400 hover:bg-[#1e293b] hover:text-white border border-transparent hover:border-white/5'
+                          }
+                      `}
+                    >
+                      {idx + 1}
+                      {isBookmarked && (
+                        <div className="absolute top-1.5 right-1.5 text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]">
+                           <Bookmark size={8} fill="currentColor" />
+                        </div>
+                      )}
+                    </button>
+                 );
+               })}
+             </div>
+           </div>
         </div>
       )}
     </div>

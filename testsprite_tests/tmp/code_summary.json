@@ -1,0 +1,52 @@
+{
+  "tech_stack": [
+    "TypeScript",
+    "React",
+    "Vite",
+    "Tailwind CSS",
+    "Supabase",
+    "Google Gemini AI"
+  ],
+  "features": [
+    {
+      "name": "Teacher View",
+      "description": "Main interface for teachers to present slides, annotate, and manage classroom sessions.",
+      "files": [
+        "components/TeacherView.tsx",
+        "components/DigitalBoard/Tools/FloatingToolbar.tsx"
+      ]
+    },
+    {
+      "name": "Student View",
+      "description": "Interface for students to view slides, take quizzes, and track progress.",
+      "files": [
+        "components/StudentView.tsx"
+      ]
+    },
+    {
+      "name": "Digital Board Tools",
+      "description": "Canvas and toolbar components for drawing and annotations.",
+      "files": [
+        "components/DigitalBoard/Tools/Toolbar.tsx",
+        "components/DigitalBoard/Tools/PropertiesPanel.tsx",
+        "components/DigitalBoard/Canvas/InfiniteCanvas.tsx"
+      ]
+    },
+    {
+      "name": "PDF Generation",
+      "description": "Service and components for generating PDF reports and notes.",
+      "files": [
+        "services/pdfGeneratorService.ts",
+        "components/PDFStudio.tsx",
+        "components/PDFConfigModal.tsx"
+      ]
+    },
+    {
+      "name": "Storage Service",
+      "description": "Service for handling data persistence with Supabase or local storage.",
+      "files": [
+        "services/storageService.ts"
+      ]
+    }
+  ]
+}

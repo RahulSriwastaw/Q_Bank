@@ -49,6 +49,10 @@ export interface Question {
   sync_code?: string;
   error_report?: string;
   error_description?: string;
+
+  // Additional metadata
+  question_source?: string;
+  usageCount?: number;
 }
 
 export interface QuestionSet {
@@ -59,10 +63,10 @@ export interface QuestionSet {
   questionIds: string[];
   createdDate: string;
   settings: {
-    timerEnabled: boolean;
-    timePerQuestion: number;
-    showQuestionNumbers: boolean;
-    randomize: boolean;
+    timerEnabled?: boolean;
+    timePerQuestion?: number;
+    showQuestionNumbers?: boolean;
+    randomize?: boolean;
     annotations?: Record<number, any[]>;
     allowDownload?: boolean;
     backgroundImage?: string;

@@ -1136,8 +1136,8 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                             </div>
 
                             <div className="flex items-center gap-1.5">
-                              {q.solution_eng && <BookOpen size={12} className="text-success" title="Verified Logic" />}
-                              {q.id.startsWith('q_') && <Sparkles size={12} className="text-primary" title="AI Synthesis" />}
+                              {q.solution_eng && <span title="Verified Logic"><BookOpen size={12} className="text-success" /></span>}
+                              {q.id.startsWith('q_') && <span title="AI Synthesis"><Sparkles size={12} className="text-primary" /></span>}
                             </div>
                           </div>
                         </div>
