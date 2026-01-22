@@ -8,23 +8,27 @@
     "Google GenAI",
     "Lucide React",
     "jsPDF",
-    "html2canvas"
+    "html2canvas",
+    "React Konva",
+    "Perfect Freehand"
   ],
   "features": [
     {
       "name": "Teacher View",
-      "description": "Interactive presentation mode for teachers with slide navigation, real-time AI assistant (Gemini), and annotation tools.",
+      "description": "Interactive presentation mode for teachers with slide navigation, real-time AI assistant (Gemini), and advanced annotation tools (SmartBoard).",
       "files": [
         "components/TeacherView.tsx",
-        "components/DrawingCanvas.tsx",
-        "components/Toolbar.tsx"
+        "components/SmartBoard/SmartBoard.tsx",
+        "components/SmartBoard/BoardCanvas.tsx",
+        "components/SmartBoard/BoardToolbar.tsx"
       ]
     },
     {
       "name": "Student View",
-      "description": "Student interface for practicing questions with immediate feedback.",
+      "description": "Student interface for practicing questions with immediate feedback and read-only annotations.",
       "files": [
-        "components/StudentView.tsx"
+        "components/StudentView.tsx",
+        "components/SmartBoard/ReadOnlyCanvas.tsx"
       ]
     },
     {
@@ -37,11 +41,12 @@
       ]
     },
     {
-      "name": "Whiteboard",
-      "description": "Standalone professional whiteboard with drawing tools, shapes, text, and export functionality.",
+      "name": "SmartBoard",
+      "description": "Professional whiteboard engine with high-performance ink, shapes, and history management.",
       "files": [
-        "components/Whiteboard/Whiteboard.tsx",
-        "components/DrawingCanvas.tsx"
+        "components/SmartBoard/SmartBoard.tsx",
+        "components/SmartBoard/store.ts",
+        "components/SmartBoard/types.ts"
       ]
     },
     {

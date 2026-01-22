@@ -487,16 +487,11 @@ export const StudentView: React.FC<StudentViewProps> = ({ onExit, initialSetId }
                         {/* High-Fidelity Capture Layer */}
                         <div className="flex-1 flex items-center justify-center relative z-10 p-20 mt-20">
                             {/* Annotation Canvas Overlay */}
-                            <DrawingCanvas
-                                tool="cursor"
-                                color="#000000"
-                                strokeWidth={0}
-                                opacity={1}
-                                paths={annotations[currentIdx] || []}
-                                onPathAdd={() => {}}
+                            <ReadOnlyCanvas
                                 width={window.innerWidth}
                                 height={window.innerHeight}
-                                readOnly={true}
+                                strokes={annotations[currentIdx] || []}
+                                opacity={1}
                             />
 
                             <div className="glass rounded-[56px] p-20 w-full max-w-5xl border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.5)] relative overflow-hidden flex flex-col justify-center text-center">
