@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { DrawingCanvas, DrawingPath } from './DrawingCanvas';
+import { ReadOnlyCanvas } from './SmartBoard/ReadOnlyCanvas';
+import { Stroke as DrawingPath } from './SmartBoard/types';
 
 interface StudentViewProps {
     onExit: () => void;

@@ -3,6 +3,16 @@ import { BoardState, Stroke } from './types';
 
 export const useBoardStore = create<BoardState>((set, get) => ({
   tool: 'pen',
+  laserConfig: {
+    mode: 'trail',
+    color: '#ef4444', // Red default
+    size: 5,
+    effect: 'standard',
+    opacity: 1,
+    duration: 1000, // 1 second delay default
+    glow: true,
+    highlight: false,
+  },
   eraserMode: 'partial',
   color: '#3b82f6', // Default blue
   size: 4,
@@ -10,6 +20,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   strokes: [],
   history: [],
   redoStack: [],
+  selectedId: null,
 
   // Shape defaults
   fillColor: '#3b82f6',
@@ -39,6 +50,21 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   boardBackgroundImage: null,
   boardOpacity: 1,
 
+  // Global Slide Strokes
+  slideStrokes: {},
+  saveSlideStrokes: (slideIndex, strokes) => set((state) => ({
+    slideStrokes: { ...state.slideStrokes, [slideIndex]: strokes }
+  })),
+  loadSlideStrokes: (slideIndex) => {
+    const { slideStrokes } = get();
+    // Load strokes for the slide, or empty if none exist
+    set({ 
+      strokes: slideStrokes[slideIndex] || [], 
+      history: [], 
+      redoStack: [] 
+    });
+  },
+
   setQuestionStyle: (style) => set((state) => ({
     questionStyle: { ...state.questionStyle, ...style }
   })),
@@ -57,6 +83,49 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   setIsBorderEnabled: (isBorderEnabled) => set({ isBorderEnabled }),
   setBorderStyle: (borderStyle) => set({ borderStyle }),
   setOpacity: (opacity) => set({ opacity }),
+  setSelectedId: (selectedId) => set({ selectedId }),
+  setLaserConfig: (config) => set((state) => ({ laserConfig: { ...state.laserConfig, ...config } })),
+
+  bringToFront: (id) => {
+    const { strokes } = get();
+    const index = strokes.findIndex(s => s.id === id);
+    if (index === -1 || index === strokes.length - 1) return;
+    const newStrokes = [...strokes];
+    const [removed] = newStrokes.splice(index, 1);
+    newStrokes.push(removed);
+    set({ strokes: newStrokes });
+  },
+
+  sendToBack: (id) => {
+    const { strokes } = get();
+    const index = strokes.findIndex(s => s.id === id);
+    if (index === -1 || index === 0) return;
+    const newStrokes = [...strokes];
+    const [removed] = newStrokes.splice(index, 1);
+    newStrokes.unshift(removed);
+    set({ strokes: newStrokes });
+  },
+
+  deleteStroke: (id) => {
+      const { strokes } = get();
+      set({ strokes: strokes.filter(s => s.id !== id), selectedId: null });
+  },
+
+  duplicateStroke: (id) => {
+      const { strokes } = get();
+      const selectedStroke = strokes.find(s => s.id === id);
+      if (selectedStroke) {
+          const newId = crypto.randomUUID();
+          const newStroke = {
+              ...selectedStroke,
+              id: newId,
+              x: (selectedStroke.x || 0) + 20,
+              y: (selectedStroke.y || 0) + 20,
+              points: selectedStroke.points.map(p => ({ ...p, x: p.x + 20, y: p.y + 20 }))
+          };
+          set({ strokes: [...strokes, newStroke], selectedId: newId });
+      }
+  },
 
   addStroke: (stroke) => {
     const { strokes, history } = get();
@@ -67,12 +136,12 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     set({ strokes: [...strokes, stroke] });
   },
 
-  updateStroke: (id, points) => {
+  updateStroke: (id, updates) => {
     const { strokes } = get();
     const index = strokes.findIndex(s => s.id === id);
     if (index !== -1) {
       const newStrokes = [...strokes];
-      newStrokes[index] = { ...newStrokes[index], points };
+      newStrokes[index] = { ...newStrokes[index], ...updates };
       set({ strokes: newStrokes });
     }
   },
@@ -141,5 +210,8 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     });
   },
 
-  setStrokes: (strokes) => set({ strokes, history: [], redoStack: [] })
+  setStrokes: (strokes) => set({ strokes, history: [], redoStack: [] }),
+
+  activePanel: 'none',
+  setActivePanel: (activePanel) => set({ activePanel })
 }));

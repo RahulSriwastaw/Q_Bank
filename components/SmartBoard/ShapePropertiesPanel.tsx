@@ -1,13 +1,23 @@
 import React from 'react';
 import { useBoardStore } from './store';
+import { Tool } from './types';
 import { 
   Minus, Square, Circle, Triangle, Star, ArrowRight, 
   MoreHorizontal, Lock, Trash2, Check, Palette
 } from 'lucide-react';
 
+const shapes = [
+  { id: 'rectangle', label: 'Rectangle', icon: Square },
+  { id: 'circle', label: 'Circle', icon: Circle },
+  { id: 'triangle', label: 'Triangle', icon: Triangle },
+  { id: 'star', label: 'Star', icon: Star },
+  { id: 'arrow', label: 'Arrow', icon: ArrowRight },
+  { id: 'line', label: 'Line', icon: Minus }
+];
+
 export const ShapePropertiesPanel: React.FC = () => {
   const { 
-    tool, 
+    tool, setTool,
     color, setColor, 
     size, setSize,
     fillColor, setFillColor,
@@ -88,20 +98,21 @@ export const ShapePropertiesPanel: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#1e1e1e] border border-white/10 rounded-xl shadow-2xl w-80 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="bg-[#1e1e1e] border border-white/10 rounded-xl shadow-2xl w-80 max-w-[90vw] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
       
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
-        <div className="flex items-center gap-2 text-slate-200 font-bold">
-          {getToolIcon()}
-          <span>{getToolName()}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          {/* Placeholder actions for future selection mode */}
-          {/* <button className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg"><Lock size={14} /></button>
-          <button className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg"><Trash2 size={14} /></button> */}
-          <button className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg"><MoreHorizontal size={16} /></button>
-        </div>
+      {/* Shape Selector Grid */}
+      <div className="p-3 grid grid-cols-3 gap-2 border-b border-white/10 bg-white/5">
+         {shapes.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setTool(s.id as Tool)}
+              className={`p-2 rounded-lg flex flex-col items-center gap-1 transition-all ${tool === s.id ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+              title={s.label}
+            >
+               <s.icon size={20} />
+               <span className="text-[9px] font-bold uppercase tracking-wider">{s.label}</span>
+            </button>
+         ))}
       </div>
 
       <div className="p-4 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">

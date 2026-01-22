@@ -5,12 +5,16 @@ import { useBoardStore } from './store';
 import { useDraggable } from './useDraggable';
 import { useResizable } from './useResizable';
 import { Question } from '../../types';
-import { Clock, Presentation, Maximize, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Clock, Presentation, Maximize, CheckCircle, ArrowLeft, CloudUpload, Loader2 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
+import { storageService } from '../../services/storageService';
 
 interface SmartBoardProps {
   questions: Question[];
   initialIdx?: number;
   setName?: string;
+  setId?: string;
   onExit: () => void;
 }
 
@@ -18,15 +22,21 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
   questions = [],
   initialIdx = 0,
   setName = 'Live Session',
+  setId,
   onExit
 }) => {
   const [currentIdx, setCurrentIdx] = useState(initialIdx);
   const [timer, setTimer] = useState(0);
   const [showAns, setShowAns] = useState(false);
   const [langMode, setLangMode] = useState<'both' | 'eng' | 'hin'>('both');
-  const [slideStrokes, setSlideStrokes] = useState<Record<number, any[]>>({});
+  const [isUploading, setIsUploading] = useState(false);
   
-  const { setStrokes, strokes, clear, questionStyle, setQuestionStyle, boardBackgroundColor, boardBackgroundImage, boardOpacity, tool } = useBoardStore();
+  const { 
+      setStrokes, strokes, clear, 
+      questionStyle, setQuestionStyle, 
+      boardBackgroundColor, boardBackgroundImage, boardOpacity, tool,
+      saveSlideStrokes, loadSlideStrokes
+  } = useBoardStore();
 
   const isCursor = tool === 'cursor';
 
@@ -48,53 +58,109 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Slide Management
+  // Initial Load
   useEffect(() => {
-    // Save current strokes before changing slide
-    return () => {
-      // This runs on unmount or update. 
-      // But we need to save when `currentIdx` CHANGES.
-    };
+      loadSlideStrokes(initialIdx);
   }, []);
-
-  // When strokes change, update the "current slide's" saved state in memory (debounced ideally, but direct is fine for now)
-  // Actually, better pattern: 
-  // When `currentIdx` changes:
-  // 1. Save `strokes` to `slideStrokes[prevIdx]`
-  // 2. Load `slideStrokes[newIdx]` into `strokes`
-  
-  // We need a ref to track previous index? Or just use effect.
-  
-  // Let's manually handle Next/Prev to control this sequence perfectly.
-  
-  const saveCurrentSlide = () => {
-    setSlideStrokes(prev => ({
-        ...prev,
-        [currentIdx]: useBoardStore.getState().strokes
-    }));
-  };
-
-  const loadSlide = (idx: number) => {
-    const saved = slideStrokes[idx] || [];
-    setStrokes(saved);
-    setShowAns(false);
-  };
 
   const handleNext = () => {
     if (currentIdx < questions.length - 1) {
-        saveCurrentSlide();
+        saveSlideStrokes(currentIdx, strokes);
         const nextIdx = currentIdx + 1;
         setCurrentIdx(nextIdx);
-        loadSlide(nextIdx);
+        loadSlideStrokes(nextIdx);
+        setShowAns(false);
     }
   };
 
   const handlePrev = () => {
     if (currentIdx > 0) {
-        saveCurrentSlide();
+        saveSlideStrokes(currentIdx, strokes);
         const prevIdx = currentIdx - 1;
         setCurrentIdx(prevIdx);
-        loadSlide(prevIdx);
+        loadSlideStrokes(prevIdx);
+        setShowAns(false);
+    }
+  };
+
+  const handleUploadNotes = async () => {
+    if (!setId) return;
+    if (!confirm("End session and upload class notes?")) return;
+    
+    setIsUploading(true);
+    
+    // Save current slide first
+    saveSlideStrokes(currentIdx, strokes);
+
+    // Hide UI elements
+    const uiElements = document.querySelectorAll('.smartboard-ui');
+    uiElements.forEach(el => (el as HTMLElement).style.display = 'none');
+    
+    const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [window.innerWidth, window.innerHeight]
+    });
+
+    try {
+        const total = questions.length;
+        
+        for (let i = 0; i < total; i++) {
+            // Programmatically navigate
+            setCurrentIdx(i);
+            loadSlideStrokes(i);
+            setShowAns(true); // Optionally show answers in notes? Let's keep it as is or show it. User said "teacher kuch likh kar padhata hai". Usually includes answers.
+            
+            // Wait for render
+            await new Promise(r => setTimeout(r, 800));
+
+            const element = document.getElementById('smartboard-container');
+            if (element) {
+                const canvas = await html2canvas(element, {
+                    scale: 1.5, // Good quality
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: boardBackgroundColor
+                });
+                
+                const imgData = canvas.toDataURL('image/jpeg', 0.8);
+                if (i > 0) pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, 0, window.innerWidth, window.innerHeight);
+            }
+        }
+        
+        const pdfBlob = pdf.output('blob');
+        const fileName = `ClassNotes_${setId}_${Date.now()}.pdf`;
+        const url = await storageService.uploadClassNotePDF(pdfBlob, fileName);
+        
+        if (url) {
+            const set = await storageService.getSetById(setId);
+            if (set) {
+                await storageService.saveSet({ 
+                    ...set, 
+                    settings: { 
+                        // Defaults for required fields
+                        timerEnabled: false,
+                        timePerQuestion: 60,
+                        showQuestionNumbers: true,
+                        randomize: false,
+                        ...(set.settings || {}), 
+                        class_notes_url: url 
+                    } 
+                });
+                alert("Class Notes Uploaded Successfully!");
+            }
+        }
+    } catch (error) {
+        console.error("Upload failed", error);
+        alert("Failed to upload notes.");
+    } finally {
+        uiElements.forEach(el => (el as HTMLElement).style.display = '');
+        setIsUploading(false);
+        // Return to where we were or exit?
+        // Let's restore to the end
+        setCurrentIdx(questions.length - 1);
+        loadSlideStrokes(questions.length - 1);
     }
   };
 
@@ -107,7 +173,7 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col text-slate-200 font-sans overflow-hidden">
+    <div id="smartboard-container" className="fixed inset-0 flex flex-col text-slate-200 font-sans overflow-hidden">
       
       {/* Board Background Layer */}
       <div 
@@ -122,7 +188,7 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
       />
       
       {/* Top Bar */}
-      <header className="absolute top-0 left-0 right-0 h-14 flex items-center justify-between px-6 z-50 bg-[#0A0C10]/90 backdrop-blur-md border-b border-white/5">
+      <header className="smartboard-ui absolute top-0 left-0 right-0 h-14 flex items-center justify-between px-6 z-50 bg-[#0A0C10]/90 backdrop-blur-md border-b border-white/5">
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 rounded-full border border-blue-500/20">
                 <Presentation size={14} className="text-blue-400" />
@@ -138,6 +204,17 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+            <button 
+                onClick={handleUploadNotes} 
+                disabled={isUploading}
+                className="flex items-center gap-2 px-4 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/30 rounded-lg transition-all"
+            >
+                {isUploading ? <Loader2 size={16} className="animate-spin" /> : <CloudUpload size={16} />}
+                <span className="text-xs font-bold uppercase tracking-wide">
+                    {isUploading ? 'Generating PDF...' : 'Upload Notes'}
+                </span>
+            </button>
+
             <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10">
                 {(['both', 'eng', 'hin'] as const).map(l => (
                     <button
@@ -161,9 +238,9 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
         </div>
       </header>
 
-      {/* Content Layer (Behind Canvas) */}
+      {/* Content Layer (Behind Canvas, but moves to front for interaction in Cursor mode) */}
       <main 
-        className="flex-1 relative flex items-center justify-center p-4 sm:p-8 z-10"
+        className={`flex-1 relative flex items-center justify-center p-4 sm:p-8 ${isCursor ? 'z-30 pointer-events-none' : 'z-10'}`}
         onPointerMove={(e) => {
             // Pass events to both handlers if active
             dragHandlers.onPointerMove(e);
@@ -176,13 +253,13 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
       >
          {currentQuestion ? (
              <div 
-                className={`select-none transition-shadow duration-75 relative ${isDragging ? 'cursor-grabbing shadow-2xl scale-[1.005]' : isCursor ? 'cursor-move' : ''}`}
+                className={`select-none transition-all duration-75 relative pointer-events-auto ${isDragging ? 'cursor-grabbing scale-[1.005]' : isCursor ? 'cursor-move' : ''}`}
                 style={{
                     transform: `translate(${position.x}px, ${position.y}px)`,
                     width: size.width,
                     height: size.height,
                     maxWidth: '100%',
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                    // Shadow moved to background layer for opacity control
                 }}
                 onPointerDown={(e) => {
                     // Only enable drag if not clicking a resize handle or button
@@ -236,15 +313,15 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
                     <div className="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2">
                         {(langMode === 'both' || langMode === 'eng') && (
                             <h1 
-                                className="font-black leading-snug drop-shadow-lg"
-                                style={{ fontSize: '1.5em', color: 'inherit' }}
+                                className="leading-snug drop-shadow-lg"
+                                style={{ fontSize: '1.5em', color: 'inherit', fontWeight: 'inherit' }}
                                 dangerouslySetInnerHTML={{ __html: currentQuestion.question_eng }}
                             />
                         )}
                         {(langMode === 'both' || langMode === 'hin') && (
                             <h2 
-                                className="font-bold leading-snug drop-shadow-md mt-2"
-                                style={{ fontSize: '1.25em', color: 'inherit', opacity: 0.9 }}
+                                className="leading-snug drop-shadow-md mt-2"
+                                style={{ fontSize: '1.25em', color: 'inherit', opacity: 0.9, fontFamily: 'inherit', fontWeight: 'inherit' }}
                                 dangerouslySetInnerHTML={{ __html: currentQuestion.question_hin }}
                             />
                         )}
@@ -308,12 +385,14 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
       <BoardCanvas width={window.innerWidth} height={window.innerHeight} />
 
       {/* Toolbar */}
-      <BoardToolbar 
-        currentSlide={currentIdx} 
-        totalSlides={questions.length || 1} 
-        onPrev={handlePrev}
-        onNext={handleNext}
-      />
+      <div className="smartboard-ui">
+        <BoardToolbar 
+            currentSlide={currentIdx} 
+            totalSlides={questions.length || 1} 
+            onPrev={handlePrev}
+            onNext={handleNext}
+        />
+      </div>
 
     </div>
   );

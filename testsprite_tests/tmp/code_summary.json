@@ -1,61 +1,56 @@
 {
   "tech_stack": [
-    "TypeScript",
     "React",
+    "TypeScript",
     "Vite",
     "Tailwind CSS",
-    "Supabase",
-    "Google GenAI",
+    "Zustand",
+    "Konva",
+    "react-konva",
     "Lucide React",
-    "jsPDF",
-    "html2canvas",
-    "React Konva",
-    "Perfect Freehand"
+    "jspdf",
+    "html2canvas"
   ],
   "features": [
     {
-      "name": "Teacher View",
-      "description": "Interactive presentation mode for teachers with slide navigation, real-time AI assistant (Gemini), and advanced annotation tools (SmartBoard).",
+      "name": "SmartBoard System",
+      "description": "A comprehensive interactive whiteboard with drawing tools, shapes, laser pointer, and infinite canvas capabilities.",
       "files": [
-        "components/TeacherView.tsx",
         "components/SmartBoard/SmartBoard.tsx",
         "components/SmartBoard/BoardCanvas.tsx",
-        "components/SmartBoard/BoardToolbar.tsx"
-      ]
-    },
-    {
-      "name": "Student View",
-      "description": "Student interface for practicing questions with immediate feedback and read-only annotations.",
-      "files": [
-        "components/StudentView.tsx",
-        "components/SmartBoard/ReadOnlyCanvas.tsx"
-      ]
-    },
-    {
-      "name": "Creator Dashboard",
-      "description": "Dashboard for creating and managing question sets, including bulk upload and PDF generation.",
-      "files": [
-        "components/CreatorDashboard.tsx",
-        "components/BulkUploadModal.tsx",
-        "components/PDFStudio.tsx"
-      ]
-    },
-    {
-      "name": "SmartBoard",
-      "description": "Professional whiteboard engine with high-performance ink, shapes, and history management.",
-      "files": [
-        "components/SmartBoard/SmartBoard.tsx",
+        "components/SmartBoard/BoardToolbar.tsx",
         "components/SmartBoard/store.ts",
-        "components/SmartBoard/types.ts"
+        "components/SmartBoard/types.ts",
+        "components/SmartBoard/useDraggable.ts",
+        "components/SmartBoard/useResizable.ts"
       ]
     },
     {
-      "name": "Services",
-      "description": "Core services for storage, AI, and PDF generation.",
+      "name": "Toolbars & Panels",
+      "description": "Context-aware toolbars for managing pen settings, shapes, laser options, and styling.",
       "files": [
-        "services/storageService.ts",
-        "services/geminiService.ts",
-        "services/pdfGeneratorService.ts"
+        "components/SmartBoard/BoardToolbar.tsx",
+        "components/SmartBoard/LaserToolbar.tsx",
+        "components/SmartBoard/StyleToolbar.tsx",
+        "components/SmartBoard/ShapePropertiesPanel.tsx",
+        "components/SmartBoard/SelectionToolbar.tsx"
+      ]
+    },
+    {
+      "name": "Question Management & PDF Studio",
+      "description": "Features for displaying questions, generating PDFs, and managing question sets.",
+      "files": [
+        "components/PDFStudio.tsx",
+        "components/PDFConfigModal.tsx",
+        "components/SmartBoard/SmartBoard.tsx"
+      ]
+    },
+    {
+      "name": "Views (Teacher/Student)",
+      "description": "Role-specific views for presenting and interacting with content.",
+      "files": [
+        "components/TeacherView.tsx",
+        "components/StudentView.tsx"
       ]
     }
   ]

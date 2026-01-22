@@ -242,6 +242,7 @@ export const TeacherView: React.FC<TeacherViewProps> = ({ onExit, initialSetId }
         questions={activeQuestions}
         initialIdx={0}
         setName={activeSet?.name}
+        setId={activeSet?.setId}
         onExit={() => {
             // Logic for summary could be handled here
             // For now, just exit to summary

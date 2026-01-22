@@ -2,7 +2,11 @@ import React from 'react';
 import { useBoardStore } from './store';
 import { Move, Upload, Image as ImageIcon, X, ChevronDown, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
 
-export const StyleToolbar: React.FC = () => {
+interface StyleToolbarProps {
+  onClose: () => void;
+}
+
+export const StyleToolbar: React.FC<StyleToolbarProps> = ({ onClose }) => {
   const { 
     questionStyle, setQuestionStyle, 
     boardBackgroundColor, setBoardBackgroundColor,
@@ -35,7 +39,17 @@ export const StyleToolbar: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#1e1e1e] border border-white/10 p-4 rounded-xl shadow-2xl mb-2 w-80 animate-in slide-in-from-bottom-2 fade-in duration-200 pointer-events-auto max-h-[60vh] overflow-y-auto custom-scrollbar">
+    <div className="bg-[#1e1e1e] border border-white/10 p-4 rounded-xl shadow-2xl mb-2 w-80 max-w-[90vw] animate-in slide-in-from-bottom-2 fade-in duration-200 pointer-events-auto max-h-[60vh] overflow-y-auto custom-scrollbar">
+      <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
+        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Style Settings</h3>
+        <button 
+          onClick={onClose}
+          className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
       <div className="space-y-6">
         
         {/* Typography Section */}
