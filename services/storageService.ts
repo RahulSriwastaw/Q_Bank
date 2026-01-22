@@ -288,4 +288,24 @@ export const storageService = {
       throw error;
     }
   },
+
+  uploadClassNotePDF: async (blob: Blob, fileName: string): Promise<string | null> => {
+    const { data, error } = await supabase.storage
+      .from('class-notes')
+      .upload(`${fileName}`, blob, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+    if (error) {
+      console.error('Error uploading PDF:', error);
+      return null;
+    }
+
+    const { data: publicData } = supabase.storage
+      .from('class-notes')
+      .getPublicUrl(data.path);
+      
+    return publicData.publicUrl;
+  },
 };

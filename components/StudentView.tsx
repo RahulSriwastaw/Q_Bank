@@ -5,14 +5,11 @@ import { QuestionSet, Question } from '../types';
 import { Button } from './Button';
 import {
     ChevronLeft, ChevronRight, CheckCircle, XCircle, AlertCircle,
-    Trophy, Home, RotateCcw, BookOpen, Clock, Zap, Lock, Key, Languages, Search, Printer, Download, FileText, Presentation, LayoutGrid, X
+    Trophy, Home, RotateCcw, BookOpen, Clock, Zap, Lock, Key, Languages, Search, Printer, Download, FileText, Presentation, Image as ImageIcon
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-
-type Point = { x: number, y: number };
-type DrawingPath = { points: Point[], color: string, width: number, type: 'pen' | 'highlighter' | 'eraser' | 'laser' };
-
+import { DrawingCanvas, DrawingPath } from './DrawingCanvas';
 
 interface StudentViewProps {
     onExit: () => void;
@@ -38,9 +35,6 @@ export const StudentView: React.FC<StudentViewProps> = ({ onExit, initialSetId }
     const [annotations, setAnnotations] = useState<Record<number, DrawingPath[]>>({});
     const [allowDownload, setAllowDownload] = useState(false);
     const [viewMode, setViewMode] = useState<'quiz' | 'notes'>('quiz'); // Toggle between Quiz and Notes logic
-    const [showPalette, setShowPalette] = useState(false);
-    const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-    const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0 });
 
     // Browsing State
     const [activeTab, setActiveTab] = useState<'Daily' | 'Weekly' | 'Monthly' | 'Yearly' | 'All'>('All');
@@ -49,8 +43,6 @@ export const StudentView: React.FC<StudentViewProps> = ({ onExit, initialSetId }
     useEffect(() => {
         if (initialSetId) {
             setSetId(initialSetId);
-            // Trigger load logic. Since loadSet depends on setId state, we might need to wait or call logic directly.
-            // Better to just call logic with the param directly.
             loadSetDirectly(initialSetId);
         } else if (mode === 'entry') {
             loadPublicSets();
@@ -102,10 +94,9 @@ export const StudentView: React.FC<StudentViewProps> = ({ onExit, initialSetId }
             if (set.settings?.annotations) {
                 setAnnotations(set.settings.annotations);
             }
-            
-            // Default to TRUE if undefined, to ensure feature is visible by default
-            const allow = set.settings?.allowDownload !== undefined ? set.settings.allowDownload : true;
-            setAllowDownload(allow);
+            if (set.settings?.allowDownload) {
+                setAllowDownload(set.settings.allowDownload);
+            }
 
         } catch (e) {
             console.error(e);
@@ -153,53 +144,6 @@ export const StudentView: React.FC<StudentViewProps> = ({ onExit, initialSetId }
         setMode('results');
     };
 
-    // Canvas Logic for Notes View
-    const canvasRef = React.useRef<HTMLCanvasElement>(null);
-    const renderPath = (ctx: CanvasRenderingContext2D, path: DrawingPath) => {
-        if (path.points.length < 2) return;
-        ctx.beginPath();
-        ctx.moveTo(path.points[0].x, path.points[0].y);
-        for (let i = 1; i < path.points.length; i++) {
-            ctx.lineTo(path.points[i].x, path.points[i].y);
-        }
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        if (path.type === 'eraser') {
-            // Eraser in read-only mode should ideally erase? 
-            // Canvas 'destination-out' works if we draw strokes in order.
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.lineWidth = 40;
-            ctx.strokeStyle = 'rgba(0,0,0,1)';
-        } else {
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.strokeStyle = path.color;
-            ctx.lineWidth = path.type === 'highlighter' ? 20 : 3;
-            if (path.type === 'highlighter') ctx.globalAlpha = 0.4;
-            else ctx.globalAlpha = 1.0;
-        }
-        ctx.stroke();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1.0;
-    };
-
-    const redrawCanvas = () => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const paths = annotations[currentIdx] || [];
-        paths.forEach(path => renderPath(ctx, path));
-    };
-
-    useEffect(() => {
-        if (viewMode === 'notes') {
-            redrawCanvas();
-        }
-    }, [currentIdx, viewMode, annotations]);
-
     const downloadCurrentNote = async () => {
         const element = document.getElementById('student-notes-view');
         if (!element) {
@@ -241,47 +185,6 @@ export const StudentView: React.FC<StudentViewProps> = ({ onExit, initialSetId }
             console.error("Download failed:", err);
             controls.forEach(el => (el as HTMLElement).style.opacity = '1');
             alert("Download failed. Please try again.");
-        }
-    };
-
-    const downloadFullClassNotes = async () => {
-        if (!activeSet || questions.length === 0) return;
-        if (!confirm("Download full class notes? This might take a moment.")) return;
-
-        setIsGeneratingPDF(true);
-        setPdfProgress({ current: 0, total: questions.length });
-
-        try {
-            // Basic implementation: Download current annotations as a JSON file or simple summary PDF
-            // Real implementation would require rendering each slide off-screen
-            
-            const doc = new jsPDF();
-            doc.setFontSize(16);
-            doc.text(`Class Notes: ${activeSet.name}`, 10, 10);
-            doc.setFontSize(12);
-            doc.text(`Date: ${new Date().toLocaleDateString()}`, 10, 20);
-            
-            let y = 30;
-            questions.forEach((q, i) => {
-                 if (y > 250) { doc.addPage(); y = 20; }
-                 doc.text(`Slide ${i+1}: ${q.question_eng.substring(0, 50)}...`, 10, y);
-                 y += 10;
-                 // Add indication of notes
-                 if (annotations[i] && annotations[i].length > 0) {
-                     doc.setTextColor(0, 100, 0);
-                     doc.text(`[Has ${annotations[i].length} handwritten notes]`, 20, y);
-                     doc.setTextColor(0, 0, 0);
-                     y += 10;
-                 }
-            });
-            
-            doc.save(`${activeSet.name}_FullNotes.pdf`);
-
-        } catch (e) {
-            console.error(e);
-            alert("Failed to generate notes.");
-        } finally {
-            setIsGeneratingPDF(false);
         }
     };
 
@@ -533,17 +436,12 @@ export const StudentView: React.FC<StudentViewProps> = ({ onExit, initialSetId }
 
                     <div className="h-10 w-px bg-white/10 mx-2"></div>
 
-                    <button 
-                        onClick={() => setShowPalette(true)}
-                        className="text-right group hover:bg-white/5 p-2 rounded-xl transition-all border border-transparent hover:border-white/5"
-                    >
-                        <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest block mb-0.5 group-hover:text-slate-400 transition-colors flex items-center justify-end gap-2">
-                            Item Progress <LayoutGrid size={10} />
-                        </span>
-                        <div className="font-mono text-primary font-black text-lg leading-none group-hover:scale-105 transition-transform origin-right">
+                    <div className="text-right">
+                        <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest block mb-0.5">Item Progress</span>
+                        <div className="font-mono text-primary font-black text-lg leading-none">
                             {currentIdx + 1}<span className="text-slate-700 mx-1">/</span>{questions.length}
                         </div>
-                    </button>
+                    </div>
                 </div>
             </header>
 
@@ -569,37 +467,36 @@ export const StudentView: React.FC<StudentViewProps> = ({ onExit, initialSetId }
                                 </button>
                             </div>
                             <div className="flex gap-4">
-                                <button onClick={downloadCurrentNote} className="w-12 h-12 flex items-center justify-center bg-success/10 text-success rounded-2xl border border-success/20 hover:bg-success hover:text-white transition-all" title="Download Slide"><Download size={20} /></button>
-                                <button onClick={downloadFullClassNotes} className="w-12 h-12 flex items-center justify-center bg-blue-500/10 text-blue-500 rounded-2xl border border-blue-500/20 hover:bg-blue-500 hover:text-white transition-all" title="Download Full Class Notes"><Presentation size={20} /></button>
+                                {activeSet?.settings?.class_notes_url && (
+                                    <a 
+                                        href={activeSet.settings.class_notes_url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-3 px-6 py-3 bg-emerald-500/10 text-emerald-500 rounded-2xl border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-all group"
+                                        title="Download Full Class Notes"
+                                    >
+                                        <Download size={20} />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] hidden sm:inline-block">Full Class PDF</span>
+                                    </a>
+                                )}
+                                <button onClick={downloadCurrentNote} className="w-12 h-12 flex items-center justify-center bg-success/10 text-success rounded-2xl border border-success/20 hover:bg-success hover:text-white transition-all" title="Download Slide"><ImageIcon size={20} /></button>
                                 <button onClick={downloadClassroomSheet} className="w-12 h-12 flex items-center justify-center bg-primary/10 text-primary rounded-2xl border border-primary/20 hover:bg-primary hover:text-white transition-all" title="Download Sheet"><FileText size={20} /></button>
                             </div>
                         </div>
 
-                        {/* PDF Generation Overlay */}
-                        {isGeneratingPDF && (
-                            <div className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center space-y-6">
-                                <div className="w-20 h-20 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                <div className="text-center">
-                                    <h3 className="text-2xl font-black text-white uppercase tracking-widest mb-2">Generating Class Notes</h3>
-                                    <p className="text-slate-400 font-mono">Processing Slide {pdfProgress.current} of {pdfProgress.total}</p>
-                                </div>
-                                <div className="w-64 h-2 bg-white/10 rounded-full overflow-hidden">
-                                    <div 
-                                        className="h-full bg-primary transition-all duration-300" 
-                                        style={{ width: `${(pdfProgress.current / pdfProgress.total) * 100}%` }}
-                                    ></div>
-                                </div>
-                            </div>
-                        )}
-
                         {/* High-Fidelity Capture Layer */}
                         <div className="flex-1 flex items-center justify-center relative z-10 p-20 mt-20">
                             {/* Annotation Canvas Overlay */}
-                            <canvas
-                                ref={canvasRef}
+                            <DrawingCanvas
+                                tool="cursor"
+                                color="#000000"
+                                strokeWidth={0}
+                                opacity={1}
+                                paths={annotations[currentIdx] || []}
+                                onPathAdd={() => {}}
                                 width={window.innerWidth}
                                 height={window.innerHeight}
-                                className="absolute inset-0 z-20 pointer-events-none"
+                                readOnly={true}
                             />
 
                             <div className="glass rounded-[56px] p-20 w-full max-w-5xl border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.5)] relative overflow-hidden flex flex-col justify-center text-center">
@@ -744,57 +641,6 @@ export const StudentView: React.FC<StudentViewProps> = ({ onExit, initialSetId }
                     </div>
                 )}
             </main>
-
-            {/* QUESTION PALETTE MODAL - PROFESSIONAL MINIMALIST DESIGN */}
-            {showPalette && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    {/* Backdrop with blur */}
-                    <div 
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                        onClick={() => setShowPalette(false)}
-                    />
-                    
-                    {/* Main Container - Matches screenshot style */}
-                    <div className="relative bg-[#0f1117]/95 backdrop-blur-2xl border border-white/10 rounded-[32px] p-8 max-w-3xl w-full shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-300">
-                        
-                        {/* Close Button - Absolute positioning like a floating action */}
-                        <button 
-                            onClick={() => setShowPalette(false)}
-                            className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
-
-                        {/* Grid Container */}
-                        <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 gap-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
-                            {questions.map((_, idx) => {
-                                const isActive = currentIdx === idx;
-                                const isAnswered = !!answers[idx];
-
-                                return (
-                                    <button
-                                        key={idx}
-                                        onClick={() => { setCurrentIdx(idx); setShowPalette(false); }}
-                                        className={`
-                                            h-12 rounded-2xl font-bold text-sm transition-all duration-200 flex items-center justify-center relative
-                                            ${isActive 
-                                                ? 'bg-[#3b82f6] text-white shadow-[0_0_20px_rgba(59,130,246,0.4)] z-10 scale-105' 
-                                                : 'bg-[#1e293b]/50 text-slate-400 hover:bg-[#1e293b] hover:text-white border border-transparent hover:border-white/5'
-                                            }
-                                        `}
-                                    >
-                                        {idx + 1}
-                                        {/* Subtle Answer Indicator dot */}
-                                        {isAnswered && !isActive && (
-                                            <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]"></div>
-                                        )}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

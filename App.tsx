@@ -3,11 +3,10 @@ import { CreatorDashboard } from './components/CreatorDashboard';
 import { TeacherView } from './components/TeacherView';
 import { StudentView } from './components/StudentView';
 import { PDFStudio } from './components/PDFStudio';
-import { DigitalBoard } from './components/DigitalBoard/DigitalBoard';
 import { Button } from './components/Button';
 import {
   Layers, Presentation, Sparkles, Zap, ShieldCheck,
-  GraduationCap, ChevronRight, Monitor
+  GraduationCap, ChevronRight
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -22,14 +21,14 @@ const App: React.FC = () => {
     if (viewParam === 'student') return { view: 'student' as const, setId: null };
     if (viewParam === 'teacher') return { view: 'teacher' as const, setId: null };
     if (viewParam === 'creator') return { view: 'creator' as const, setId: null };
-    if (viewParam === 'board') return { view: 'board' as const, setId: null };
     if (viewParam === 'pdf' && setIdParam) return { view: 'pdf' as const, setId: setIdParam };
 
     return { view: 'landing' as const, setId: null };
   };
 
   const initial = getInitialState();
-  const [view, setView] = useState<'landing' | 'creator' | 'teacher' | 'student' | 'pdf' | 'board'>(initial.view);
+  const defaultView = initial.view;
+  const [view, setView] = useState<'landing' | 'creator' | 'teacher' | 'student' | 'pdf'>(defaultView);
   const [presentationSetId, setPresentationSetId] = useState<string | null>(initial.setId);
 
   // Update URL function (optional, to keep URL in sync)
@@ -47,7 +46,7 @@ const App: React.FC = () => {
     updateUrl('teacher', setId);
   };
 
-  const handleNavigate = (newView: 'landing' | 'creator' | 'teacher' | 'student' | 'pdf' | 'board', id?: string) => {
+  const handleNavigate = (newView: 'landing' | 'creator' | 'teacher' | 'student' | 'pdf', id?: string) => {
     setView(newView);
     updateUrl(newView, id);
     setPresentationSetId(id || null);
@@ -89,8 +88,10 @@ const App: React.FC = () => {
     );
   }
 
-  if (view === 'board') {
-    return <DigitalBoard />;
+  if (view === 'whiteboard') {
+    return (
+      <Whiteboard onExit={() => handleNavigate('landing')} />
+    );
   }
 
   return (

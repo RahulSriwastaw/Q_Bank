@@ -5,47 +5,52 @@
     "Vite",
     "Tailwind CSS",
     "Supabase",
-    "Google Gemini AI"
+    "Google GenAI",
+    "Lucide React",
+    "jsPDF",
+    "html2canvas"
   ],
   "features": [
     {
       "name": "Teacher View",
-      "description": "Main interface for teachers to present slides, annotate, and manage classroom sessions.",
+      "description": "Interactive presentation mode for teachers with slide navigation, real-time AI assistant (Gemini), and annotation tools.",
       "files": [
         "components/TeacherView.tsx",
-        "components/DigitalBoard/Tools/FloatingToolbar.tsx"
+        "components/DrawingCanvas.tsx",
+        "components/Toolbar.tsx"
       ]
     },
     {
       "name": "Student View",
-      "description": "Interface for students to view slides, take quizzes, and track progress.",
+      "description": "Student interface for practicing questions with immediate feedback.",
       "files": [
         "components/StudentView.tsx"
       ]
     },
     {
-      "name": "Digital Board Tools",
-      "description": "Canvas and toolbar components for drawing and annotations.",
+      "name": "Creator Dashboard",
+      "description": "Dashboard for creating and managing question sets, including bulk upload and PDF generation.",
       "files": [
-        "components/DigitalBoard/Tools/Toolbar.tsx",
-        "components/DigitalBoard/Tools/PropertiesPanel.tsx",
-        "components/DigitalBoard/Canvas/InfiniteCanvas.tsx"
+        "components/CreatorDashboard.tsx",
+        "components/BulkUploadModal.tsx",
+        "components/PDFStudio.tsx"
       ]
     },
     {
-      "name": "PDF Generation",
-      "description": "Service and components for generating PDF reports and notes.",
+      "name": "Whiteboard",
+      "description": "Standalone professional whiteboard with drawing tools, shapes, text, and export functionality.",
       "files": [
-        "services/pdfGeneratorService.ts",
-        "components/PDFStudio.tsx",
-        "components/PDFConfigModal.tsx"
+        "components/Whiteboard/Whiteboard.tsx",
+        "components/DrawingCanvas.tsx"
       ]
     },
     {
-      "name": "Storage Service",
-      "description": "Service for handling data persistence with Supabase or local storage.",
+      "name": "Services",
+      "description": "Core services for storage, AI, and PDF generation.",
       "files": [
-        "services/storageService.ts"
+        "services/storageService.ts",
+        "services/geminiService.ts",
+        "services/pdfGeneratorService.ts"
       ]
     }
   ]
