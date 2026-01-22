@@ -3,15 +3,60 @@ import { BoardState, Stroke } from './types';
 
 export const useBoardStore = create<BoardState>((set, get) => ({
   tool: 'pen',
+  eraserMode: 'partial',
   color: '#3b82f6', // Default blue
   size: 4,
+  eraserSize: 20,
   strokes: [],
   history: [],
   redoStack: [],
 
+  // Shape defaults
+  fillColor: '#3b82f6',
+  isFillEnabled: false,
+  isBorderEnabled: true,
+  borderStyle: 'solid',
+  opacity: 1,
+
+  // New Styling Defaults
+  questionStyle: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontFamily: 'sans-serif',
+    backgroundColor: 'rgba(21, 25, 33, 0.8)', // Dark semi-transparent
+    position: { x: 0, y: 0 },
+    dimensions: { width: 900, height: 500 },
+    scale: 1,
+    textOpacity: 1,
+    cardOpacity: 0.9,
+    textAlign: 'left',
+    lineHeight: 1.5,
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
+  },
+  boardBackgroundColor: '#0A0C10',
+  boardBackgroundImage: null,
+  boardOpacity: 1,
+
+  setQuestionStyle: (style) => set((state) => ({
+    questionStyle: { ...state.questionStyle, ...style }
+  })),
+  setBoardBackgroundColor: (boardBackgroundColor) => set({ boardBackgroundColor }),
+  setBoardBackgroundImage: (boardBackgroundImage) => set({ boardBackgroundImage }),
+  setBoardOpacity: (boardOpacity) => set({ boardOpacity }),
+
   setTool: (tool) => set({ tool }),
+  setEraserMode: (eraserMode) => set({ eraserMode }),
   setColor: (color) => set({ color }),
   setSize: (size) => set({ size }),
+  setEraserSize: (eraserSize) => set({ eraserSize }),
+
+  setFillColor: (fillColor) => set({ fillColor }),
+  setIsFillEnabled: (isFillEnabled) => set({ isFillEnabled }),
+  setIsBorderEnabled: (isBorderEnabled) => set({ isBorderEnabled }),
+  setBorderStyle: (borderStyle) => set({ borderStyle }),
+  setOpacity: (opacity) => set({ opacity }),
 
   addStroke: (stroke) => {
     const { strokes, history } = get();

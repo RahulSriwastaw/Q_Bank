@@ -2,7 +2,14 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { GenerateParams, Question } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+const getAI = () => {
+  if (!aiInstance) {
+    const key = import.meta.env.VITE_GEMINI_API_KEY || 'dummy_key';
+    aiInstance = new GoogleGenAI({ apiKey: key });
+  }
+  return aiInstance;
+};
 
 export const CURRENT_AFFAIRS_CATEGORIES = [
   "Daily News Recap",
@@ -98,7 +105,7 @@ export const geminiService = {
     `;
 
     try {
-      const response: GenerateContentResponse = await ai.models.generateContent({
+      const response: GenerateContentResponse = await getAI().models.generateContent({
         model: modelName,
         contents: prompt,
         config: {
@@ -190,7 +197,7 @@ export const geminiService = {
 
   summarizeExplanation: async (text: string): Promise<string> => {
     try {
-      const response = await ai.models.generateContent({
+      const response = await getAI().models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Summarize this in one short sentence: "${text}"`,
       });
@@ -203,7 +210,7 @@ export const geminiService = {
   suggestTopics: async (subject: string): Promise<string[]> => {
     if (subject === 'Current Affairs') return CURRENT_AFFAIRS_CATEGORIES;
     try {
-      const response = await ai.models.generateContent({
+      const response = await getAI().models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `List 10 popular chapters for competitive exams in ${subject}. JSON array of strings only.`,
         config: {
