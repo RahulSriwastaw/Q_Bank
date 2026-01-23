@@ -77,7 +77,8 @@ export const geminiService = {
 
     const isCurrentAffairs = subject === 'Current Affairs';
     // Use stable models (Gemini 1.5) to ensure availability
-    const modelName = isCurrentAffairs ? 'gemini-1.5-pro' : 'gemini-1.5-flash';
+    // Fallback to flash if pro is unavailable in the region
+    const modelName = 'gemini-1.5-flash';
 
     // Extract cleaner topic name for prompt
     const cleanTopic = topic.includes('(') ? topic.split('(')[1].replace(')', '') : topic;
