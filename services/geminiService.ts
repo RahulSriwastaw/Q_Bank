@@ -76,9 +76,11 @@ export const geminiService = {
     const { subject, topic, difficulty, count, type, date, language, context, inputMode, files } = params;
 
     const isCurrentAffairs = subject === 'Current Affairs';
-    // Use stable models (Gemini 1.5) to ensure availability
-    // Fallback to flash if pro is unavailable in the region
-    const modelName = 'gemini-1.5-flash';
+    
+    // Model fallback list to ensure reliability
+    const modelsToTry = isCurrentAffairs 
+      ? ['gemini-1.5-pro', 'gemini-1.5-pro-001', 'gemini-1.5-flash'] 
+      : ['gemini-1.5-flash', 'gemini-1.5-flash-001', 'gemini-1.5-flash-8b', 'gemini-pro'];
 
     // Extract cleaner topic name for prompt
     const cleanTopic = topic.includes('(') ? topic.split('(')[1].replace(')', '') : topic;
@@ -147,56 +149,76 @@ export const geminiService = {
         contentParts = [...contentParts, ...fileParts];
       }
 
-      const response: GenerateContentResponse = await getAI().models.generateContent({
-        model: modelName,
-        contents: [
-          {
-            role: "user",
-            parts: contentParts
-          }
-        ],
-        config: {
-          tools: isCurrentAffairs || inputMode === 'url' ? [{ googleSearch: {} }] : undefined,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                question_eng: { type: Type.STRING },
-                question_hin: { type: Type.STRING },
-                option1_eng: { type: Type.STRING },
-                option1_hin: { type: Type.STRING },
-                option2_eng: { type: Type.STRING },
-                option2_hin: { type: Type.STRING },
-                option3_eng: { type: Type.STRING },
-                option3_hin: { type: Type.STRING },
-                option4_eng: { type: Type.STRING },
-                option4_hin: { type: Type.STRING },
-                option5_eng: { type: Type.STRING },
-                option5_hin: { type: Type.STRING },
-                answer: { type: Type.STRING },
-                solution_eng: { type: Type.STRING },
-                solution_hin: { type: Type.STRING },
-                exam: { type: Type.STRING },
-                year: { type: Type.STRING },
-                section: { type: Type.STRING },
-                chapter: { type: Type.STRING }
-              },
-              required: [
-                "question_eng", "question_hin",
-                "option1_eng", "option1_hin",
-                "option2_eng", "option2_hin",
-                "option3_eng", "option3_hin",
-                "option4_eng", "option4_hin",
-                "answer",
-                "solution_eng", "solution_hin",
-                "exam", "year"
-              ]
+      let response: GenerateContentResponse | null = null;
+      let lastError: any = null;
+
+      // Try models in sequence until one works
+      for (const model of modelsToTry) {
+        try {
+          console.log(`Attempting generation with model: ${model}`);
+          response = await getAI().models.generateContent({
+            model: model,
+            contents: [
+              {
+                role: "user",
+                parts: contentParts
+              }
+            ],
+            config: {
+              tools: isCurrentAffairs || inputMode === 'url' ? [{ googleSearch: {} }] : undefined,
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    question_eng: { type: Type.STRING },
+                    question_hin: { type: Type.STRING },
+                    option1_eng: { type: Type.STRING },
+                    option1_hin: { type: Type.STRING },
+                    option2_eng: { type: Type.STRING },
+                    option2_hin: { type: Type.STRING },
+                    option3_eng: { type: Type.STRING },
+                    option3_hin: { type: Type.STRING },
+                    option4_eng: { type: Type.STRING },
+                    option4_hin: { type: Type.STRING },
+                    option5_eng: { type: Type.STRING },
+                    option5_hin: { type: Type.STRING },
+                    answer: { type: Type.STRING },
+                    solution_eng: { type: Type.STRING },
+                    solution_hin: { type: Type.STRING },
+                    exam: { type: Type.STRING },
+                    year: { type: Type.STRING },
+                    section: { type: Type.STRING },
+                    chapter: { type: Type.STRING }
+                  },
+                  required: [
+                    "question_eng", "question_hin",
+                    "option1_eng", "option1_hin",
+                    "option2_eng", "option2_hin",
+                    "option3_eng", "option3_hin",
+                    "option4_eng", "option4_hin",
+                    "answer",
+                    "solution_eng", "solution_hin",
+                    "exam", "year"
+                  ]
+                }
+              }
             }
-          }
+          });
+          
+          // If successful, break the loop
+          if (response) break;
+        } catch (e: any) {
+          console.warn(`Model ${model} failed:`, e.message);
+          lastError = e;
+          // Continue to next model
         }
-      });
+      }
+
+      if (!response) {
+        throw lastError || new Error("All models failed to generate content");
+      }
 
       const rawQuestions = JSON.parse(response.text || "[]") as any[];
 
