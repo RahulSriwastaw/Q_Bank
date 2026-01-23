@@ -76,7 +76,8 @@ export const geminiService = {
     const { subject, topic, difficulty, count, type, date, language, context, inputMode, files } = params;
 
     const isCurrentAffairs = subject === 'Current Affairs';
-    const modelName = isCurrentAffairs ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
+    // Use stable models (Gemini 1.5) to ensure availability
+    const modelName = isCurrentAffairs ? 'gemini-1.5-pro' : 'gemini-1.5-flash';
 
     // Extract cleaner topic name for prompt
     const cleanTopic = topic.includes('(') ? topic.split('(')[1].replace(')', '') : topic;
@@ -234,17 +235,18 @@ export const geminiService = {
           "AI-Generated"
         ].filter(Boolean)
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Generation Error:", error);
-      throw new Error("Failed to generate questions. Check network or API limits.");
+      // Throw the actual error message for better debugging in UI
+      throw new Error(error.message || "Failed to generate questions. Check network or API limits.");
     }
   },
 
   summarizeExplanation: async (text: string): Promise<string> => {
     try {
       const response = await getAI().models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Summarize this in one short sentence: "${text}"`,
+        model: 'gemini-1.5-flash',
+        contents: [{ role: 'user', parts: [{ text: `Summarize this in one short sentence: "${text}"` }] }],
       });
       return response.text?.trim() || text;
     } catch (err) {
@@ -256,8 +258,8 @@ export const geminiService = {
     if (subject === 'Current Affairs') return CURRENT_AFFAIRS_CATEGORIES;
     try {
       const response = await getAI().models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `List 10 popular chapters for competitive exams in ${subject}. JSON array of strings only.`,
+        model: 'gemini-1.5-flash',
+        contents: [{ role: 'user', parts: [{ text: `List 10 popular chapters for competitive exams in ${subject}. JSON array of strings only.` }] }],
         config: {
           responseMimeType: "application/json",
           responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
