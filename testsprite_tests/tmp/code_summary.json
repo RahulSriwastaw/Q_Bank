@@ -1,24 +1,26 @@
 {
   "tech_stack": [
-    "React",
     "TypeScript",
+    "React",
     "Vite",
-    "Tailwind CSS",
-    "Zustand",
+    "Supabase",
     "Konva",
-    "react-konva",
-    "Lucide React",
-    "jspdf",
-    "html2canvas"
+    "Zustand",
+    "TailwindCSS"
   ],
   "features": [
     {
-      "name": "SmartBoard System",
-      "description": "A comprehensive interactive whiteboard with drawing tools, shapes, laser pointer, and infinite canvas capabilities.",
+      "name": "SmartBoard",
+      "description": "Interactive whiteboard component with drawing capabilities, shape management, and toolbar controls. Supports both editable and read-only modes.",
       "files": [
         "components/SmartBoard/SmartBoard.tsx",
         "components/SmartBoard/BoardCanvas.tsx",
         "components/SmartBoard/BoardToolbar.tsx",
+        "components/SmartBoard/ReadOnlyCanvas.tsx",
+        "components/SmartBoard/ShapePropertiesPanel.tsx",
+        "components/SmartBoard/StyleToolbar.tsx",
+        "components/SmartBoard/LaserToolbar.tsx",
+        "components/SmartBoard/SelectionToolbar.tsx",
         "components/SmartBoard/store.ts",
         "components/SmartBoard/types.ts",
         "components/SmartBoard/useDraggable.ts",
@@ -26,31 +28,33 @@
       ]
     },
     {
-      "name": "Toolbars & Panels",
-      "description": "Context-aware toolbars for managing pen settings, shapes, laser options, and styling.",
-      "files": [
-        "components/SmartBoard/BoardToolbar.tsx",
-        "components/SmartBoard/LaserToolbar.tsx",
-        "components/SmartBoard/StyleToolbar.tsx",
-        "components/SmartBoard/ShapePropertiesPanel.tsx",
-        "components/SmartBoard/SelectionToolbar.tsx"
-      ]
-    },
-    {
-      "name": "Question Management & PDF Studio",
-      "description": "Features for displaying questions, generating PDFs, and managing question sets.",
+      "name": "PDFStudio",
+      "description": "Component for handling PDF configurations and generation.",
       "files": [
         "components/PDFStudio.tsx",
-        "components/PDFConfigModal.tsx",
-        "components/SmartBoard/SmartBoard.tsx"
+        "components/PDFConfigModal.tsx"
       ]
     },
     {
-      "name": "Views (Teacher/Student)",
-      "description": "Role-specific views for presenting and interacting with content.",
+      "name": "User Views",
+      "description": "Distinct views for different user roles: Teacher and Student.",
       "files": [
         "components/TeacherView.tsx",
         "components/StudentView.tsx"
+      ]
+    },
+    {
+      "name": "Creator Dashboard",
+      "description": "Dashboard interface for content creators.",
+      "files": [
+        "components/CreatorDashboard.tsx"
+      ]
+    },
+    {
+      "name": "Bulk Upload",
+      "description": "Modal interface for bulk uploading data or files.",
+      "files": [
+        "components/BulkUploadModal.tsx"
       ]
     }
   ]

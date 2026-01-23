@@ -2,5 +2,6 @@
   "status": "commited",
   "type": "frontend",
   "scope": "codebase",
-  "localEndpoint": "http://localhost:5173"
+  "localEndpoint": "http://localhost:3000",
+  "apiKey": "sk-user-bx6PH4Nalt6MX8NS1iZOU4HlBuXj937sihjaAznvG2QjlAapyIv8e35bG6NDazunGJ9U9UM9svBvZaEn_ZdpjRDcHwXNh0zMtmUl0bsWgaLbNWrSvPVKYzG6-_rFPhd6BIE"
 }

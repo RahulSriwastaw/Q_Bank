@@ -49,6 +49,8 @@ export interface Question {
   sync_code?: string;
   error_report?: string;
   error_description?: string;
+  question_source?: string;
+  usageCount?: number;
 }
 
 export interface QuestionSet {
@@ -102,6 +104,9 @@ export interface GenerateParams {
   type: QuestionType;
   language: string;
   date?: string; // New field for daily updates
+  context?: string;
+  inputMode?: 'text' | 'image' | 'pdf' | 'url';
+  files?: File[];
 }
 
 // --- Bulk Upload System Types ---

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 import {
   Plus, Save, Trash2, CheckCircle, RefreshCw, Layers, BookOpen, Search, Copy, Download, Upload, X,
@@ -9,6 +9,8 @@ import {
   ChevronRight, Hash, FilterX, Check, Image as ImageIcon, Eraser, Heading1, Heading2,
   CircleDot, Circle, Lock, Key, Share2, Flag, Printer, AlertCircle, Bell, User, ArrowDownCircle, Star
 } from 'lucide-react';
+import { InputPanel, InputMode, InputData } from './QuestionGeneration/InputPanel';
+import { AutoDetectionFeedback } from './QuestionGeneration/AutoDetectionFeedback';
 import { storageService } from '../services/storageService';
 import { geminiService, CURRENT_AFFAIRS_CATEGORIES } from '../services/geminiService';
 import { Question, QuestionSet, Difficulty, QuestionType, GenerateParams } from '../types';
@@ -396,6 +398,31 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
+  const [inputMode, setInputMode] = useState<InputMode>('text');
+  const [inputData, setInputData] = useState<InputData>({});
+
+  const handleInputChange = useCallback((mode: InputMode, data: InputData) => {
+    setInputMode(mode);
+    setInputData(data);
+    
+    // Auto-update generation parameters based on input
+    const isShortText = mode === 'text' && data.text && data.text.length < 100;
+
+    setGenParams(prev => ({ 
+      ...prev, 
+      inputMode: mode,
+      // Only set context if it's NOT a short text (topic)
+      context: (mode === 'text' && isShortText) ? '' : (data.text || data.url || ''),
+      files: data.files,
+      // If text is short, treat it as a topic, otherwise it's context
+      topic: isShortText ? data.text! : 
+             (mode === 'text' && data.text ? 'Custom Content' :
+             (mode === 'url' ? 'URL Analysis' : 
+             (mode === 'image' ? 'Image Analysis' : 
+             (mode === 'pdf' ? 'PDF Analysis' : prev.topic))))
+    }));
+  }, []);
+
   const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
 
   // Custom Topics Management
@@ -708,8 +735,9 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
     try {
       const qs = await geminiService.generateQuestions(genParams);
       setGeneratedQuestions(qs);
-    } catch (e) {
-      alert("GenAI Error");
+    } catch (e: any) {
+      console.error("Generation failed:", e);
+      alert(`GenAI Error: ${e.message || e}`);
     } finally {
       setIsGenerating(false);
     }
@@ -1278,102 +1306,36 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
 
                 {/* Synthesis Stream / Topic Focus */}
                 <div className="lg:col-span-8 space-y-4">
-                  <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Topic Explorer</label>
-                        <p className="text-[11px] font-bold text-slate-500">Select or create topics for synthesis</p>
+                  {/* PRD Step 1: Input Panel (Multi-modal) */}
+                  <InputPanel onInputChange={handleInputChange} className="shadow-sm" />
+
+                  {/* Auto Detection Feedback */}
+                  <AutoDetectionFeedback 
+                    mode={inputMode} 
+                    data={inputData} 
+                    detectedTopic={genParams.topic} 
+                  />
+
+                  {/* AI Suggested Topics - Quick Select (Optional, kept for convenience) */}
+                  {suggestedTopics.length > 0 && inputMode === 'text' && (
+                    <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles size={14} className="text-primary" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AI Suggestions</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-bold text-slate-400">
-                          {customTopics.length} Custom • {suggestedTopics.length} AI Suggested
-                        </span>
-                        <button
-                          onClick={() => setShowTopicModal(true)}
-                          className="h-8 px-3 bg-primary text-white rounded-md text-[10px] font-black uppercase tracking-wider hover:bg-primary/90 transition-all flex items-center gap-1.5"
-                        >
-                          <Plus size={14} /> New Topic
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Add New Topic Inline */}
-                    <div className="flex gap-2 mb-4">
-                      <input
-                        type="text"
-                        value={newTopicInput}
-                        onChange={(e) => setNewTopicInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddTopic()}
-                        placeholder="Type new topic name and press Enter..."
-                        className="flex-1 h-10 px-4 border border-slate-200 rounded-md text-sm focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all"
-                      />
-                      <button
-                        onClick={handleAddTopic}
-                        disabled={!newTopicInput.trim()}
-                        className="h-10 px-4 bg-slate-900 text-white rounded-md text-[10px] font-black uppercase tracking-wider hover:bg-primary transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Plus size={14} /> Add
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 h-[280px] overflow-y-auto no-scrollbar mask-fade-bottom">
-                      {/* Custom Topics First - Editable */}
-                      {customTopics.map((t, index) => (
-                        <div
-                          key={`custom-${t}-${index}`}
-                          className={`p-3 rounded-md text-left border transition-all relative group ${genParams.topic === t ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 text-slate-600 hover:border-amber-300'}`}
-                        >
-                          {/* Edit/Delete buttons */}
-                          <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleEditTopic(index); }}
-                              className="w-6 h-6 bg-white border border-slate-200 rounded flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary transition-all"
-                              title="Edit Topic"
-                            >
-                              <Edit3 size={12} />
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDeleteTopic(index); }}
-                              className="w-6 h-6 bg-white border border-red-200 rounded flex items-center justify-center text-red-400 hover:bg-red-500 hover:text-white transition-all"
-                              title="Delete Topic"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-
+                      <div className="flex flex-wrap gap-2">
+                        {suggestedTopics.slice(0, 5).map(t => (
                           <button
-                            onClick={() => setGenParams({ ...genParams, topic: t })}
-                            className="w-full text-left"
+                            key={t}
+                            onClick={() => setGenParams(prev => ({ ...prev, topic: t, context: t }))}
+                            className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-[10px] font-bold text-slate-600 hover:border-primary hover:text-primary transition-all"
                           >
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <div className={`w-6 h-6 rounded flex items-center justify-center transition-all ${genParams.topic === t ? 'bg-primary text-white' : 'bg-amber-100 text-amber-500'}`}>
-                                <Star size={12} />
-                              </div>
-                              <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Custom</span>
-                            </div>
-                            <span className="text-[11px] font-bold leading-tight tracking-tight uppercase line-clamp-2">{t}</span>
+                            {t}
                           </button>
-                        </div>
-                      ))}
-
-                      {/* AI Suggested Topics */}
-                      {suggestedTopics.filter(t => !customTopics.includes(t)).map(t => (
-                        <button
-                          key={t}
-                          onClick={() => setGenParams({ ...genParams, topic: t })}
-                          className={`p-3 rounded-md text-left border transition-all ${genParams.topic === t ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-slate-50 border-transparent text-slate-500 hover:border-slate-200 hover:bg-white'}`}
-                        >
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <div className={`w-6 h-6 rounded flex items-center justify-center transition-all ${genParams.topic === t ? 'bg-primary text-white' : 'bg-white text-slate-300'}`}>
-                              <Hash size={12} />
-                            </div>
-                            <span className="text-[10px] font-black text-primary/40 uppercase tracking-widest">AI</span>
-                          </div>
-                          <span className="text-[11px] font-bold leading-tight tracking-tight uppercase line-clamp-2">{t}</span>
-                        </button>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {generatedQuestions.length > 0 && (
                     <div className="bg-white rounded-lg border border-slate-200 shadow-lg overflow-hidden animate-in slide-in-from-top-4 duration-500">

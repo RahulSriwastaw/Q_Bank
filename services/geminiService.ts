@@ -2,6 +2,26 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { GenerateParams, Question } from '../types';
 
+// Helper to convert File to Base64 for Gemini
+const fileToPart = (file: File): Promise<{ inlineData: { mimeType: string; data: string } }> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      // Remove data url prefix (e.g. "data:image/jpeg;base64,")
+      const base64Data = base64String.split(',')[1];
+      resolve({
+        inlineData: {
+          mimeType: file.type,
+          data: base64Data
+        }
+      });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 let aiInstance: GoogleGenAI | null = null;
 const getAI = () => {
   if (!aiInstance) {
@@ -53,7 +73,7 @@ export const CURRENT_AFFAIRS_CATEGORIES = [
 
 export const geminiService = {
   generateQuestions: async (params: GenerateParams): Promise<Question[]> => {
-    const { subject, topic, difficulty, count, type, date, language } = params;
+    const { subject, topic, difficulty, count, type, date, language, context, inputMode, files } = params;
 
     const isCurrentAffairs = subject === 'Current Affairs';
     const modelName = isCurrentAffairs ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
@@ -68,6 +88,16 @@ export const geminiService = {
     const currentYear = new Date().getFullYear().toString();
     const todayDate = new Date().toISOString().split('T')[0];
 
+    // Build Context Instruction based on Input Mode
+    let contextInstruction = "";
+    if (inputMode === 'text' && context) {
+      contextInstruction = `SOURCE MATERIAL:\n${context}\n\nINSTRUCTION: Generate questions STRICTLY based on the provided source material above. Do not use outside knowledge unless necessary to clarify context.`;
+    } else if (inputMode === 'url' && context) {
+      contextInstruction = `SOURCE URL: ${context}\n\nINSTRUCTION: Access the URL content (if possible) or use your knowledge about this specific URL/Topic to generate questions.`;
+    } else if ((inputMode === 'image' || inputMode === 'pdf') && files?.length) {
+      contextInstruction = `INSTRUCTION: Analyze the attached images/documents and generate questions based on their visual or textual content.`;
+    }
+
     const prompt = `
       Generate ${count} educational questions for an Indian competitive exam (UPSC, SSC, Railway, State PSC, Banking).
       Subject: ${subject}
@@ -76,6 +106,8 @@ export const geminiService = {
       Difficulty: ${difficulty}
       Language: ${language || 'Bilingual'} (Ensure content is primarily in this language. If Bilingual, provide both English and Hindi).
       
+      ${contextInstruction}
+
       Instructions for Current Affairs:
       - ${date ? `Source news ONLY from ${date}` : 'Use the most recent verified information.'}
       - Ensure high accuracy in facts, appointments, and data.
@@ -105,11 +137,24 @@ export const geminiService = {
     `;
 
     try {
+      // Prepare content parts (Text + Files)
+      let contentParts: any[] = [{ text: prompt }];
+
+      if ((inputMode === 'image' || inputMode === 'pdf') && files && files.length > 0) {
+        const fileParts = await Promise.all(files.map(fileToPart));
+        contentParts = [...contentParts, ...fileParts];
+      }
+
       const response: GenerateContentResponse = await getAI().models.generateContent({
         model: modelName,
-        contents: prompt,
+        contents: [
+          {
+            role: "user",
+            parts: contentParts
+          }
+        ],
         config: {
-          tools: isCurrentAffairs ? [{ googleSearch: {} }] : undefined,
+          tools: isCurrentAffairs || inputMode === 'url' ? [{ googleSearch: {} }] : undefined,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.ARRAY,
