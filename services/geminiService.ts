@@ -1,9 +1,9 @@
 
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenerativeAI, Part } from "@google/generative-ai";
 import { GenerateParams, Question } from '../types';
 
 // Helper to convert File to Base64 for Gemini
-const fileToPart = (file: File): Promise<{ inlineData: { mimeType: string; data: string } }> => {
+const fileToPart = (file: File): Promise<Part> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -22,11 +22,11 @@ const fileToPart = (file: File): Promise<{ inlineData: { mimeType: string; data:
   });
 };
 
-let aiInstance: GoogleGenAI | null = null;
+let aiInstance: GoogleGenerativeAI | null = null;
 const getAI = () => {
   if (!aiInstance) {
     const key = import.meta.env.VITE_GEMINI_API_KEY || 'dummy_key';
-    aiInstance = new GoogleGenAI({ apiKey: key });
+    aiInstance = new GoogleGenerativeAI(key);
   }
   return aiInstance;
 };
@@ -142,55 +142,48 @@ export const geminiService = {
 
     try {
       // Prepare content parts (Text + Files)
-      let contentParts: any[] = [{ text: prompt }];
+      let contentParts: Part[] = [{ text: prompt }];
 
       if ((inputMode === 'image' || inputMode === 'pdf') && files && files.length > 0) {
         const fileParts = await Promise.all(files.map(fileToPart));
         contentParts = [...contentParts, ...fileParts];
       }
 
-      let response: GenerateContentResponse | null = null;
+      let responseText = "";
       let lastError: any = null;
 
       // Try models in sequence until one works
-      for (const model of modelsToTry) {
+      for (const modelName of modelsToTry) {
         try {
-          console.log(`Attempting generation with model: ${model}`);
-          response = await getAI().models.generateContent({
-            model: model,
-            contents: [
-              {
-                role: "user",
-                parts: contentParts
-              }
-            ],
-            config: {
-              tools: isCurrentAffairs || inputMode === 'url' ? [{ googleSearch: {} }] : undefined,
+          console.log(`Attempting generation with model: ${modelName}`);
+          const model = getAI().getGenerativeModel({ 
+            model: modelName,
+            generationConfig: {
               responseMimeType: "application/json",
               responseSchema: {
-                type: Type.ARRAY,
+                type: "ARRAY" as any,
                 items: {
-                  type: Type.OBJECT,
+                  type: "OBJECT" as any,
                   properties: {
-                    question_eng: { type: Type.STRING },
-                    question_hin: { type: Type.STRING },
-                    option1_eng: { type: Type.STRING },
-                    option1_hin: { type: Type.STRING },
-                    option2_eng: { type: Type.STRING },
-                    option2_hin: { type: Type.STRING },
-                    option3_eng: { type: Type.STRING },
-                    option3_hin: { type: Type.STRING },
-                    option4_eng: { type: Type.STRING },
-                    option4_hin: { type: Type.STRING },
-                    option5_eng: { type: Type.STRING },
-                    option5_hin: { type: Type.STRING },
-                    answer: { type: Type.STRING },
-                    solution_eng: { type: Type.STRING },
-                    solution_hin: { type: Type.STRING },
-                    exam: { type: Type.STRING },
-                    year: { type: Type.STRING },
-                    section: { type: Type.STRING },
-                    chapter: { type: Type.STRING }
+                    question_eng: { type: "STRING" as any },
+                    question_hin: { type: "STRING" as any },
+                    option1_eng: { type: "STRING" as any },
+                    option1_hin: { type: "STRING" as any },
+                    option2_eng: { type: "STRING" as any },
+                    option2_hin: { type: "STRING" as any },
+                    option3_eng: { type: "STRING" as any },
+                    option3_hin: { type: "STRING" as any },
+                    option4_eng: { type: "STRING" as any },
+                    option4_hin: { type: "STRING" as any },
+                    option5_eng: { type: "STRING" as any },
+                    option5_hin: { type: "STRING" as any },
+                    answer: { type: "STRING" as any },
+                    solution_eng: { type: "STRING" as any },
+                    solution_hin: { type: "STRING" as any },
+                    exam: { type: "STRING" as any },
+                    year: { type: "STRING" as any },
+                    section: { type: "STRING" as any },
+                    chapter: { type: "STRING" as any }
                   },
                   required: [
                     "question_eng", "question_hin",
@@ -206,21 +199,25 @@ export const geminiService = {
               }
             }
           });
+
+          const result = await model.generateContent(contentParts);
+          const response = await result.response;
+          responseText = response.text();
           
           // If successful, break the loop
-          if (response) break;
+          if (responseText) break;
         } catch (e: any) {
-          console.warn(`Model ${model} failed:`, e.message);
+          console.warn(`Model ${modelName} failed:`, e.message);
           lastError = e;
           // Continue to next model
         }
       }
 
-      if (!response) {
+      if (!responseText) {
         throw lastError || new Error("All models failed to generate content");
       }
 
-      const rawQuestions = JSON.parse(response.text || "[]") as any[];
+      const rawQuestions = JSON.parse(responseText || "[]") as any[];
 
       return rawQuestions.map((q: any) => ({
         ...q,
@@ -267,11 +264,9 @@ export const geminiService = {
 
   summarizeExplanation: async (text: string): Promise<string> => {
     try {
-      const response = await getAI().models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: [{ role: 'user', parts: [{ text: `Summarize this in one short sentence: "${text}"` }] }],
-      });
-      return response.text?.trim() || text;
+      const model = getAI().getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const result = await model.generateContent(`Summarize this in one short sentence: "${text}"`);
+      return result.response.text().trim() || text;
     } catch (err) {
       return text;
     }
@@ -280,15 +275,16 @@ export const geminiService = {
   suggestTopics: async (subject: string): Promise<string[]> => {
     if (subject === 'Current Affairs') return CURRENT_AFFAIRS_CATEGORIES;
     try {
-      const response = await getAI().models.generateContent({
+      const model = getAI().getGenerativeModel({ 
         model: 'gemini-1.5-flash',
-        contents: [{ role: 'user', parts: [{ text: `List 10 popular chapters for competitive exams in ${subject}. JSON array of strings only.` }] }],
-        config: {
+        generationConfig: {
           responseMimeType: "application/json",
-          responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
+          responseSchema: { type: "ARRAY" as any, items: { type: "STRING" as any } }
         }
       });
-      return JSON.parse(response.text || "[]") as string[];
+      
+      const result = await model.generateContent(`List 10 popular chapters for competitive exams in ${subject}. JSON array of strings only.`);
+      return JSON.parse(result.response.text() || "[]") as string[];
     } catch (err) {
       return [];
     }
