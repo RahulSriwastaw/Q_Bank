@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { CreatorDashboard } from './components/CreatorDashboard';
 import { TeacherView } from './components/TeacherView';
 import { StudentView } from './components/StudentView';
-import { PDFStudio } from './components/PDFStudio';
+import { ToolsDashboard } from './components/Tools/ToolsDashboard';
 import { Button } from './components/Button';
 import {
   Layers, Presentation, Sparkles, Zap, ShieldCheck,
-  GraduationCap, ChevronRight
+  Wrench, ChevronRight
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -22,13 +22,14 @@ const App: React.FC = () => {
     if (viewParam === 'teacher') return { view: 'teacher' as const, setId: null };
     if (viewParam === 'creator') return { view: 'creator' as const, setId: null };
     if (viewParam === 'pdf' && setIdParam) return { view: 'pdf' as const, setId: setIdParam };
+    if (viewParam === 'tools') return { view: 'tools' as const, setId: null };
 
     return { view: 'landing' as const, setId: null };
   };
 
   const initial = getInitialState();
   const defaultView = initial.view;
-  const [view, setView] = useState<'landing' | 'creator' | 'teacher' | 'student' | 'pdf'>(defaultView);
+  const [view, setView] = useState<'landing' | 'creator' | 'teacher' | 'student' | 'pdf' | 'tools'>(defaultView);
   const [presentationSetId, setPresentationSetId] = useState<string | null>(initial.setId);
 
   // Update URL function (optional, to keep URL in sync)
@@ -46,7 +47,7 @@ const App: React.FC = () => {
     updateUrl('teacher', setId);
   };
 
-  const handleNavigate = (newView: 'landing' | 'creator' | 'teacher' | 'student' | 'pdf', id?: string) => {
+  const handleNavigate = (newView: 'landing' | 'creator' | 'teacher' | 'student' | 'pdf' | 'tools', id?: string) => {
     setView(newView);
     updateUrl(newView, id);
     setPresentationSetId(id || null);
@@ -84,6 +85,14 @@ const App: React.FC = () => {
       <PDFStudio
         initialSetId={presentationSetId}
         onExit={() => handleNavigate('creator')}
+      />
+    );
+  }
+
+  if (view === 'tools') {
+    return (
+      <ToolsDashboard
+        onExit={() => handleNavigate('landing')}
       />
     );
   }
@@ -131,10 +140,10 @@ const App: React.FC = () => {
             },
             {
               id: modeId => handleNavigate(modeId),
-              role: 'student',
-              title: 'Student Zone',
-              desc: 'Interactive practice environment with automated feedback and performance tracking.',
-              icon: GraduationCap,
+              role: 'tools',
+              title: 'Tools',
+              desc: 'Access powerful AI utilities including Proofreader, PDF to Text, and other creator resources.',
+              icon: Wrench,
             }
           ].map((mode) => (
             <button

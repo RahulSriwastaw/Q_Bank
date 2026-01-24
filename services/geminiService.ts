@@ -72,15 +72,19 @@ export const CURRENT_AFFAIRS_CATEGORIES = [
 ];
 
 export const geminiService = {
-  generateQuestions: async (params: GenerateParams): Promise<Question[]> => {
+  generateQuestions: async (params: GenerateParams, modelId?: string): Promise<Question[]> => {
     const { subject, topic, difficulty, count, type, date, language, context, inputMode, files } = params;
 
     const isCurrentAffairs = subject === 'Current Affairs';
-    
+
     // Model fallback list to ensure reliability
-    const modelsToTry = isCurrentAffairs 
-      ? ['gemini-1.5-pro', 'gemini-1.5-pro-001', 'gemini-1.5-flash'] 
-      : ['gemini-1.5-flash', 'gemini-1.5-flash-001', 'gemini-1.5-flash-8b', 'gemini-pro'];
+    // Prioritizing Gemini 2.0 Flash (Experimental) as requested
+    const defaultModels = isCurrentAffairs
+      ? ['gemini-2.0-flash-exp', 'gemini-1.5-pro-002', 'gemini-1.5-flash', 'gemini-1.5-pro-001']
+      : ['gemini-2.0-flash-exp', 'gemini-1.5-flash-latest', 'gemini-1.5-flash-002', 'gemini-pro'];
+
+    // If specific model requested, try that first
+    const modelsToTry = modelId ? [modelId, ...defaultModels] : defaultModels;
 
     // Extract cleaner topic name for prompt
     const cleanTopic = topic.includes('(') ? topic.split('(')[1].replace(')', '') : topic;
@@ -116,6 +120,17 @@ export const geminiService = {
       - ${date ? `Source news ONLY from ${date}` : 'Use the most recent verified information.'}
       - Ensure high accuracy in facts, appointments, and data.
       - Every question must be relevant for a candidate appearing in exams in 2025.
+
+      IMPORTANT: SOLUTION QUALITY REQUIREMENTS (CRITICAL):
+      For every question, the "solution_eng" and "solution_hin" must be HIGHLY COMPREHENSIVE and cover the topic exhaustively.
+      Structure the solution to include:
+      1. **Detailed Explanation**: Cover the 'Why' and 'How', not just the 'What'. Explain the core answer in depth.
+      2. **Context & Background**: Provide the background story or context necessary to understand the event.
+      3. **Key Details**: Explicitly mention relevant Dates, Names, Figures, Locations, and Constitutional Articles/Acts if applicable.
+      4. **Related Information**: Briefly cover related sub-topics or connected events to give a holistic view.
+      5. **Key Takeaways**: Bullet points of facts to remember.
+
+      Objective: A student reading this solution should grasp the ENTIRE topic and be able to answer related questions without needing further reference.
       
       IMPORTANT: Fill ALL metadata fields accurately:
       - exam: Target exam like "UPSC", "SSC CGL", "RRB NTPC", "IBPS PO", "BPSC", etc.
@@ -132,7 +147,8 @@ export const geminiService = {
         "option4_eng": "...", "option4_hin": "...",
         "option5_eng": "None of the above / More than one of the above", "option5_hin": "उपर्युक्त में से कोई नहीं / उपर्युक्त में से एक से अधिक",
         "answer": "1", // Valid values: 1, 2, 3, 4, 5
-        "solution_eng": "...", "solution_hin": "...",
+        "solution_eng": "**Correct Answer:** [Option]\\n\\n**Detailed Explanation:** ...\\n\\n**Context:** ...\\n\\n**Key Takeaways:** ...", 
+        "solution_hin": "**सही उत्तर:** [विकल्प]\\n\\n**विस्तृत व्याख्या:** ...\\n\\n**संदर्भ:** ...\\n\\n**मुख्य बिंदु:** ...",
         "exam": "SSC CGL",
         "year": "${currentYear}",
         "section": "General Awareness",
@@ -153,10 +169,15 @@ export const geminiService = {
       let lastError: any = null;
 
       // Try models in sequence until one works
-      for (const modelName of modelsToTry) {
+      // Added gemini-1.5-pro as stable fallback, and maintained 2.0 flash exp as lead
+      const activeModels = isCurrentAffairs
+        ? ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash']
+        : ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+
+      for (const modelName of activeModels) {
         try {
           console.log(`Attempting generation with model: ${modelName}`);
-          const model = getAI().getGenerativeModel({ 
+          const model = getAI().getGenerativeModel({
             model: modelName,
             generationConfig: {
               responseMimeType: "application/json",
@@ -203,7 +224,7 @@ export const geminiService = {
           const result = await model.generateContent(contentParts);
           const response = await result.response;
           responseText = response.text();
-          
+
           // If successful, break the loop
           if (responseText) break;
         } catch (e: any) {
@@ -217,7 +238,9 @@ export const geminiService = {
         throw lastError || new Error("All models failed to generate content");
       }
 
-      const rawQuestions = JSON.parse(responseText || "[]") as any[];
+      // Cleanup response text (remove markdown code blocks if present)
+      const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const rawQuestions = JSON.parse(cleanText || "[]") as any[];
 
       return rawQuestions.map((q: any) => ({
         ...q,
@@ -264,7 +287,7 @@ export const geminiService = {
 
   summarizeExplanation: async (text: string): Promise<string> => {
     try {
-      const model = getAI().getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = getAI().getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
       const result = await model.generateContent(`Summarize this in one short sentence: "${text}"`);
       return result.response.text().trim() || text;
     } catch (err) {
@@ -275,18 +298,106 @@ export const geminiService = {
   suggestTopics: async (subject: string): Promise<string[]> => {
     if (subject === 'Current Affairs') return CURRENT_AFFAIRS_CATEGORIES;
     try {
-      const model = getAI().getGenerativeModel({ 
-        model: 'gemini-1.5-flash',
+      const model = getAI().getGenerativeModel({
+        model: 'gemini-2.0-flash-exp',
         generationConfig: {
           responseMimeType: "application/json",
           responseSchema: { type: "ARRAY" as any, items: { type: "STRING" as any } }
         }
       });
-      
+
       const result = await model.generateContent(`List 10 popular chapters for competitive exams in ${subject}. JSON array of strings only.`);
       return JSON.parse(result.response.text() || "[]") as string[];
     } catch (err) {
       return [];
+    }
+  },
+
+  generateAnswer: async (question: string, options: { detailLevel: 'Brief' | 'Detailed' | 'Step-by-Step'; language: string }): Promise<any> => {
+    const prompt = `
+      Provide a ${options.detailLevel} answer for this question: "${question}"
+      Language: ${options.language}
+      
+      Format (JSON):
+      {
+        "answer": "Core answer text...",
+        "explanation": "Detailed explanation...",
+        "key_points": ["Point 1", "Point 2"],
+        "examples": ["Example 1"],
+        "common_mistakes": ["Mistake 1"]
+      }
+    `;
+
+    try {
+      const model = getAI().getGenerativeModel({
+        model: 'gemini-2.0-flash-exp',
+        generationConfig: { responseMimeType: "application/json" }
+      });
+      const result = await model.generateContent(prompt);
+      return JSON.parse(result.response.text());
+    } catch (e) {
+      console.warn("gemini-2.0-flash-exp failed for answer, trying gemini-1.5-pro", e);
+      try {
+        const model = getAI().getGenerativeModel({
+          model: 'gemini-1.5-pro',
+          generationConfig: { responseMimeType: "application/json" }
+        });
+        const result = await model.generateContent(prompt);
+        return JSON.parse(result.response.text());
+      } catch (e2) {
+        console.error("Answer gen failed on fallback", e2);
+        throw e2;
+      }
+    }
+  },
+
+  generateBookStructure: async (title: string, subject: string, targetAudience: string, topics: string[]): Promise<any> => {
+    const prompt = `
+      Create a detailed book structure for: "${title}"
+      Subject: ${subject}
+      Target Audience: ${targetAudience}
+      Key Topics: ${topics.join(", ")}
+      
+      Format (JSON):
+      {
+        "title": "${title}",
+        "chapters": [
+          {
+            "title": "Chapter 1: ...",
+            "sections": ["1.1 ...", "1.2 ..."],
+            "summary": "Brief summary..."
+          }
+        ]
+      }
+    `;
+    try {
+      const model = getAI().getGenerativeModel({
+        model: 'gemini-2.0-flash-exp',
+        generationConfig: { responseMimeType: "application/json" }
+      });
+      const result = await model.generateContent(prompt);
+      return JSON.parse(result.response.text());
+    } catch (e) {
+      console.error("Book structure gen failed", e);
+      throw e;
+    }
+  },
+
+  generateBookChapter: async (chapterTitle: string, sections: string[], audience: string): Promise<string> => {
+    const prompt = `
+      Write a detailed book chapter content for: "${chapterTitle}"
+      Sections to cover: ${sections.join(", ")}
+      Target Audience: ${audience}
+      
+      Format: Markdown (Detailed, educational, engaging, with examples)
+    `;
+    try {
+      const model = getAI().getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch (e) {
+      console.error("Chapter content gen failed", e);
+      throw e;
     }
   }
 };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 
 import {
-  Plus, Save, Trash2, CheckCircle, RefreshCw, Layers, BookOpen, Search, Copy, Download, Upload, X,
+  Plus, Save, Trash2, CheckCircle, RefreshCw, Layers, BookOpen, Book, Search, Copy, Download, Upload, X,
   ArrowUp, ArrowDown, ArrowLeft, GripVertical, Presentation, Sparkles, AlertTriangle, Filter,
   Lightbulb, ExternalLink, Calendar, Languages, CheckSquare, Square, Tag, BarChart3, Edit3,
   Settings2, Trash, Database, FileJson, ChevronDown, Wand2, Globe, Settings, Clock, Bold,
@@ -11,8 +11,14 @@ import {
 } from 'lucide-react';
 import { InputPanel, InputMode, InputData } from './QuestionGeneration/InputPanel';
 import { AutoDetectionFeedback } from './QuestionGeneration/AutoDetectionFeedback';
+import { AnswerGenerator } from './AnswerGenerator';
+import { BookStudio } from './BookStudio/BookStudio';
+import { AdvancedFilterPanel } from './AdvancedFilterPanel';
+import { SubjectSpecificPanel } from './SubjectSpecificPanel';
+import { SetWizard } from './SetWizard';
 import { storageService } from '../services/storageService';
 import { geminiService, CURRENT_AFFAIRS_CATEGORIES } from '../services/geminiService';
+import { aiOrchestrator, availableModels, AIModelConfig } from '../services/aiOrchestrator';
 import { Question, QuestionSet, Difficulty, QuestionType, GenerateParams } from '../types';
 import { BulkUploadModal } from './BulkUploadModal';
 import { Button } from './Button';
@@ -35,98 +41,7 @@ const LANGUAGES = [
   'English', 'Hindi', 'Bilingual'
 ];
 
-interface RichEditorProps {
-  label: string;
-  value: string;
-  onChange: (val: string) => void;
-  minHeight?: string;
-  accessory?: React.ReactNode;
-}
-
-const RichEditor: React.FC<RichEditorProps> = ({ label, value, onChange, minHeight = "120px", accessory }) => {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const [activeStyles, setActiveStyles] = useState({
-    bold: false,
-    italic: false,
-    ul: false,
-    ol: false
-  });
-
-  const exec = (cmd: string, val: string = '') => {
-    document.execCommand(cmd, false, val);
-    editorRef.current?.focus();
-    checkStyles();
-  };
-
-  const checkStyles = () => {
-    setActiveStyles({
-      bold: document.queryCommandState('bold'),
-      italic: document.queryCommandState('italic'),
-      ul: document.queryCommandState('insertUnorderedList'),
-      ol: document.queryCommandState('insertOrderedList')
-    });
-  };
-
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value || '';
-    }
-  }, [value]);
-
-  return (
-    <div className="space-y-3 group/editor animate-in fade-in duration-500">
-      <div className="flex items-center justify-between px-2">
-        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{label}</label>
-        {accessory}
-      </div>
-
-      <div className="bg-white rounded-[40px] border border-slate-100 shadow-[0_20px_60px_rgba(0,0,0,0.04)] focus-within:border-primary/20 focus-within:ring-4 focus-within:ring-primary/5 transition-all overflow-hidden relative group/editor">
-        {/* Cinematic Toolbar */}
-        <div className="px-6 py-4 bg-slate-900 border-b border-white/5 flex flex-wrap items-center gap-2 relative z-10">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-accent-purple/5 pointer-events-none" />
-
-          <div className="flex items-center gap-1 bg-white/5 p-1.5 rounded-2xl border border-white/5">
-            <button onMouseDown={(e) => { e.preventDefault(); exec('bold'); }} className={`p-2.5 rounded-xl transition-all ${activeStyles.bold ? 'bg-primary text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'}`} title="Bold"><Bold size={16} /></button>
-            <button onMouseDown={(e) => { e.preventDefault(); exec('italic'); }} className={`p-2.5 rounded-xl transition-all ${activeStyles.italic ? 'bg-primary text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'}`} title="Italic"><Italic size={16} /></button>
-          </div>
-
-          <div className="w-px h-8 bg-white/10 mx-1" />
-
-          <div className="flex items-center gap-1 bg-white/5 p-1.5 rounded-2xl border border-white/5">
-            <button onMouseDown={(e) => { e.preventDefault(); exec('insertUnorderedList'); }} className={`p-2.5 rounded-xl transition-all ${activeStyles.ul ? 'bg-primary text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'}`} title="List"><List size={16} /></button>
-            <button onMouseDown={(e) => { e.preventDefault(); exec('insertOrderedList'); }} className={`p-2.5 rounded-xl transition-all ${activeStyles.ol ? 'bg-primary text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/10'}`} title="Ordered List"><ListOrdered size={16} /></button>
-          </div>
-
-          <div className="w-px h-8 bg-white/10 mx-1" />
-
-          <div className="flex items-center gap-1 bg-white/5 p-1.5 rounded-2xl border border-white/5">
-            <button onMouseDown={(e) => { e.preventDefault(); exec('formatBlock', '<h1>'); }} className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all" title="H1"><Heading1 size={16} /></button>
-            <button onMouseDown={(e) => { e.preventDefault(); exec('formatBlock', '<h2>'); }} className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all" title="H2"><Heading2 size={16} /></button>
-          </div>
-
-          <div className="ml-auto flex items-center gap-1.5">
-            <button onMouseDown={(e) => { e.preventDefault(); exec('undo'); }} className="p-2.5 rounded-xl text-slate-500 hover:text-white transition-all" title="Undo"><Undo size={16} /></button>
-            <button onMouseDown={(e) => { e.preventDefault(); exec('redo'); }} className="p-2.5 rounded-xl text-slate-500 hover:text-white transition-all" title="Redo"><Redo size={16} /></button>
-            <div className="w-px h-8 bg-white/10 mx-2" />
-            <button onMouseDown={(e) => { e.preventDefault(); exec('removeFormat'); }} className="p-2.5 rounded-xl text-slate-500 hover:text-error hover:bg-error/10 transition-all" title="Clear Format"><Eraser size={16} /></button>
-          </div>
-        </div>
-
-        {/* High-Fidelity Text Vector */}
-        <div
-          ref={editorRef}
-          contentEditable
-          className="p-8 outline-none prose prose-slate max-w-none text-slate-700 font-medium leading-relaxed"
-          style={{ minHeight }}
-          onInput={() => onChange(editorRef.current?.innerHTML || '')}
-          onBlur={checkStyles}
-          onKeyUp={checkStyles}
-          onMouseUp={checkStyles}
-        />
-      </div>
-    </div>
-  );
-};
+import { RichEditor } from './RichEditor';
 
 interface CascadingSelectorProps {
   library: Question[];
@@ -337,7 +252,8 @@ const CascadingSelector: React.FC<CascadingSelectorProps> = ({ library, onSelect
 };
 
 export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPresentation, onLaunchPDF }) => {
-  const [activeTab, setActiveTab] = useState<'generate' | 'library' | 'sets'>('library');
+  const [activeTab, setActiveTab] = useState<'generate' | 'library' | 'sets' | 'answer' | 'book'>('library');
+  const [viewLanguage, setViewLanguage] = useState<'English' | 'Hindi' | 'Bilingual'>('Bilingual');
 
   // Set Creation Wizard State
   const [setWizardStep, setSetWizardStep] = useState<'details' | 'source' | 'questions'>('details');
@@ -373,6 +289,14 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
   const [yearFilter, setYearFilter] = useState<string>('All');
   const [dateFilter, setDateFilter] = useState<string>('All');
   const [chapterFilter, setChapterFilter] = useState<string>('All');
+  const [topicFilter, setTopicFilter] = useState<string>('All');
+  const [sectionFilter, setSectionFilter] = useState<string>('All');
+  const [collectionFilter, setCollectionFilter] = useState<string>('All');
+  const [tagsFilter, setTagsFilter] = useState<string[]>([]);
+  const [aiGeneratedFilter, setAiGeneratedFilter] = useState<'All' | 'AI' | 'Manual'>('All');
+  const [flaggedFilter, setFlaggedFilter] = useState<'All' | 'Flagged' | 'Unflagged'>('All');
+  const [smartPreset, setSmartPreset] = useState<string>('None');
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
   const bulkInputRef = useRef<HTMLInputElement>(null);
 
   const uniqueSubjects = useMemo(() => Array.from(new Set(library.map(q => q.subject).filter(Boolean))).sort(), [library]);
@@ -384,8 +308,18 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
   const uniqueSections = useMemo(() => Array.from(new Set(library.map(q => q.section).filter(Boolean))).sort(), [library]);
   const uniqueCollections = useMemo(() => Array.from(new Set(library.map(q => q.collection).filter(Boolean))).sort(), [library]);
   const uniquePreviousOf = useMemo(() => Array.from(new Set(library.map(q => q.previous_of).filter(Boolean))).sort(), [library]);
+  const uniqueTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    library.forEach(q => {
+      if (q.tags && Array.isArray(q.tags)) {
+        q.tags.forEach(tag => tag && tagSet.add(tag));
+      }
+    });
+    return Array.from(tagSet).sort();
+  }, [library]);
 
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [isSetWizardOpen, setIsSetWizardOpen] = useState(false);
 
   const [genParams, setGenParams] = useState<GenerateParams>({
     subject: 'Current Affairs',
@@ -400,26 +334,27 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
   const [inputMode, setInputMode] = useState<InputMode>('text');
   const [inputData, setInputData] = useState<InputData>({});
+  const [selectedAIModel, setSelectedAIModel] = useState<AIModelConfig>(availableModels[0]);
 
   const handleInputChange = useCallback((mode: InputMode, data: InputData) => {
     setInputMode(mode);
     setInputData(data);
-    
+
     // Auto-update generation parameters based on input
     const isShortText = mode === 'text' && data.text && data.text.length < 100;
 
-    setGenParams(prev => ({ 
-      ...prev, 
+    setGenParams(prev => ({
+      ...prev,
       inputMode: mode,
       // Only set context if it's NOT a short text (topic)
       context: (mode === 'text' && isShortText) ? '' : (data.text || data.url || ''),
       files: data.files,
       // If text is short, treat it as a topic, otherwise it's context
-      topic: isShortText ? data.text! : 
-             (mode === 'text' && data.text ? 'Custom Content' :
-             (mode === 'url' ? 'URL Analysis' : 
-             (mode === 'image' ? 'Image Analysis' : 
-             (mode === 'pdf' ? 'PDF Analysis' : prev.topic))))
+      topic: isShortText ? data.text! :
+        (mode === 'text' && data.text ? 'Custom Content' :
+          (mode === 'url' ? 'URL Analysis' :
+            (mode === 'image' ? 'Image Analysis' :
+              (mode === 'pdf' ? 'PDF Analysis' : prev.topic))))
     }));
   }, []);
 
@@ -733,11 +668,15 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
     if (!genParams.topic) return alert("Select a topic");
     setIsGenerating(true);
     try {
-      const qs = await geminiService.generateQuestions(genParams);
-      setGeneratedQuestions(qs);
+      const qs = await aiOrchestrator.generateQuestions(genParams, selectedAIModel);
+      if (!qs || qs.length === 0) {
+        alert("The AI successfully processed your request but returned 0 questions.\n\nThis usually happens if:\n1. The topic is too niche.\n2. The safety filters blocked the content.\n3. The result was not in the expected format.\n\nTry simplifying the topic or using a different model.");
+      } else {
+        setGeneratedQuestions(qs);
+      }
     } catch (e: any) {
       console.error("Generation failed:", e);
-      alert(`GenAI Error: ${e.message || e}`);
+      alert(`GenAI Error (${selectedAIModel.displayName}): ${e.message || e}`);
     } finally {
       setIsGenerating(false);
     }
@@ -752,23 +691,98 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
     setIsDataLoading(false);
   };
 
+  // Clear all filters
+  const clearAllFilters = () => {
+    setFilter('');
+    setDifficultyFilter('All');
+    setLanguageFilter('All');
+    setSubjectFilterState('All');
+    setExamFilter('All');
+    setYearFilter('All');
+    setDateFilter('All');
+    setChapterFilter('All');
+    setTopicFilter('All');
+    setSectionFilter('All');
+    setCollectionFilter('All');
+    setTagsFilter([]);
+    setAiGeneratedFilter('All');
+    setFlaggedFilter('All');
+    setSmartPreset('None');
+  };
+
+  // Apply smart filter presets
+  const applySmartPreset = (preset: string) => {
+    clearAllFilters();
+    setSmartPreset(preset);
+    const today = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+
+    switch (preset) {
+      case 'Recent AI Generated':
+        setAiGeneratedFilter('AI');
+        // Filter for last 7 days
+        break;
+      case 'Current Affairs This Month':
+        setSubjectFilterState('Current Affairs');
+        // Would need date range here
+        break;
+      case 'Flagged for Review':
+        setFlaggedFilter('Flagged');
+        break;
+      case 'Missing Hindi':
+        // This would need a custom filter in the logic
+        break;
+      case 'High Difficulty Unattempted':
+        setDifficultyFilter('Hard');
+        break;
+    }
+  };
+
 
   const filteredLibrary = useMemo(() => {
     return library.filter(q => {
-      const matchSearch = q.question_eng.toLowerCase().includes(filter.toLowerCase()) ||
-        q.question_hin.toLowerCase().includes(filter.toLowerCase());
+      // Text search in question, solution, and options
+      const matchSearch = filter === '' ||
+        q.question_eng.toLowerCase().includes(filter.toLowerCase()) ||
+        q.question_hin.toLowerCase().includes(filter.toLowerCase()) ||
+        q.solution_eng?.toLowerCase().includes(filter.toLowerCase()) ||
+        q.solution_hin?.toLowerCase().includes(filter.toLowerCase()) ||
+        q.option1_eng.toLowerCase().includes(filter.toLowerCase()) ||
+        q.option2_eng.toLowerCase().includes(filter.toLowerCase()) ||
+        q.option3_eng.toLowerCase().includes(filter.toLowerCase()) ||
+        q.option4_eng.toLowerCase().includes(filter.toLowerCase());
+
       const matchDiff = difficultyFilter === 'All' || q.difficulty === difficultyFilter;
       const matchLang = languageFilter === 'All' || q.language === languageFilter;
-
       const matchSub = subjectFilterState === 'All' || q.subject === subjectFilterState;
       const matchExam = examFilter === 'All' || (q.exam || 'Unknown') === examFilter;
       const matchYear = yearFilter === 'All' || (q.year || 'Unknown') === yearFilter;
       const matchDate = dateFilter === 'All' || (q.date || q.createdDate?.split('T')[0] || 'Unknown') === dateFilter;
       const matchChapter = chapterFilter === 'All' || (q.chapter || 'Unknown') === chapterFilter;
+      const matchTopic = topicFilter === 'All' || (q.topic || 'Unknown') === topicFilter;
+      const matchSection = sectionFilter === 'All' || (q.section || 'Unknown') === sectionFilter;
+      const matchCollection = collectionFilter === 'All' || (q.collection || 'Unknown') === collectionFilter;
 
-      return matchSearch && matchDiff && matchLang && matchSub && matchExam && matchYear && matchDate && matchChapter;
+      // Tags filter (must match ALL selected tags)
+      const matchTags = tagsFilter.length === 0 || tagsFilter.every(tag => q.tags?.includes(tag));
+
+      // AI Generated filter
+      const matchAI = aiGeneratedFilter === 'All' ||
+        (aiGeneratedFilter === 'AI' && (q.tags?.includes('AI-Generated') || q.id.includes('q_'))) ||
+        (aiGeneratedFilter === 'Manual' && !q.tags?.includes('AI-Generated') && !q.id.includes('q_'));
+
+      // Flagged filter
+      const matchFlagged = flaggedFilter === 'All' ||
+        (flaggedFilter === 'Flagged' && q.flagged === true) ||
+        (flaggedFilter === 'Unflagged' && !q.flagged);
+
+      return matchSearch && matchDiff && matchLang && matchSub && matchExam && matchYear &&
+        matchDate && matchChapter && matchTopic && matchSection && matchCollection &&
+        matchTags && matchAI && matchFlagged;
     });
-  }, [library, filter, difficultyFilter, languageFilter, subjectFilterState, examFilter, yearFilter, dateFilter, chapterFilter]);
+  }, [library, filter, difficultyFilter, languageFilter, subjectFilterState, examFilter, yearFilter,
+    dateFilter, chapterFilter, topicFilter, sectionFilter, collectionFilter, tagsFilter, aiGeneratedFilter, flaggedFilter]);
 
   const setWizardFilteredQuestions = useMemo(() => {
     if (setWizardStep !== 'questions') return [];
@@ -820,32 +834,34 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden page-fade-in selection:bg-primary/20">
       {/* 1. CINEMATIC ORCHESTRATION SIDEBAR */}
-      <aside className="w-[260px] bg-slate-950 flex flex-col shrink-0 relative z-50 overflow-hidden shadow-2xl border-r border-white/5">
+      <aside className="w-[220px] bg-slate-950 flex flex-col shrink-0 relative z-50 overflow-hidden shadow-2xl border-r border-white/5">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full -mr-32 -mt-32" />
 
         {/* Branding (Compact) */}
-        <div className="p-6 pb-2 relative overflow-hidden group">
+        <div className="p-4 pb-2 relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-primary via-accent-pink to-accent-purple" />
-          <div className="flex items-center gap-3 relative z-10">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary via-indigo-600 to-accent-purple rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 relative overflow-hidden">
-              <Layers size={18} />
+          <div className="flex items-center gap-2 relative z-10">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary via-indigo-600 to-accent-purple rounded-lg flex items-center justify-center text-white shadow-lg shadow-primary/20 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 relative overflow-hidden">
+              <Layers size={16} />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white tracking-tight leading-none font-heading uppercase">Q-Bank <span className="text-primary">PRO</span></h2>
-              <div className="flex items-center gap-1.5 mt-1">
+              <h2 className="text-base font-black text-white tracking-tight leading-none font-heading uppercase">Q-Bank <span className="text-primary">PRO</span></h2>
+              <div className="flex items-center gap-1 mt-0.5">
                 <span className="w-1 h-1 rounded-full bg-success animate-pulse" />
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Institutional</p>
+                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Institutional</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Navigation Matrix (Compact) */}
-        <nav className="flex-1 px-3 space-y-1 overflow-y-auto no-scrollbar py-4">
+        <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto no-scrollbar py-2">
           {[
             { id: 'library', label: 'Global Inventory', icon: Database, color: 'primary', desc: 'Repository' },
             { id: 'generate', label: 'Intelligence Lab', icon: Sparkles, color: 'accent-pink', desc: 'AI Synthesis' },
             { id: 'sets', label: 'Curation Studio', icon: FileJson, color: 'accent-purple', desc: 'Exam Packages' },
+            { id: 'answer', label: 'AI Answer', icon: CheckCircle, color: 'warning', desc: 'Deep Analysis' },
+            { id: 'book', label: 'AI Book', icon: BookOpen, color: 'indigo-500', desc: 'Content Gen' },
             { id: 'analytics', label: 'Scoreboard', icon: BarChart3, color: 'success', desc: 'Analytics' },
           ].map((item) => (
             <button
@@ -855,22 +871,22 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                 setActiveTab(item.id as any);
                 setSelectedIds([]);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 relative group overflow-hidden ${activeTab === item.id
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-300 relative group overflow-hidden ${activeTab === item.id
                 ? 'bg-white/10 text-white shadow-md border border-white/10'
                 : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
                 }`}
             >
               <div className={`transition-all duration-300 relative z-10 ${activeTab === item.id ? 'scale-100 text-primary' : 'group-hover:text-white'}`}>
-                <item.icon size={16} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+                <item.icon size={14} strokeWidth={activeTab === item.id ? 2.5 : 2} />
               </div>
               <div className="text-left relative z-10 flex-1">
-                <span className={`text-[11px] font-black tracking-wider uppercase block ${activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>{item.label}</span>
-                {activeTab === item.id && <span className="text-[8px] font-bold text-primary/80 uppercase tracking-widest mt-0.5 animate-in slide-in-from-left-2">{item.desc}</span>}
+                <span className={`text-[10px] font-black tracking-wider uppercase block ${activeTab === item.id ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>{item.label}</span>
+                {activeTab === item.id && <span className="text-[7px] font-bold text-primary/80 uppercase tracking-widest mt-0 animate-in slide-in-from-left-2">{item.desc}</span>}
               </div>
               {activeTab === item.id && (
-                <div className="absolute right-3 flex items-center gap-1.5">
-                  <div className="w-1 h-1 rounded-full bg-primary shadow-[0_0_8px_rgba(79,70,229,1)] animate-ping" />
-                  <div className="w-1 h-1 rounded-full bg-primary" />
+                <div className="absolute right-2 flex items-center gap-1">
+                  <div className="w-0.5 h-0.5 rounded-full bg-primary shadow-[0_0_8px_rgba(79,70,229,1)] animate-ping" />
+                  <div className="w-0.5 h-0.5 rounded-full bg-primary" />
                 </div>
               )}
             </button>
@@ -878,16 +894,16 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
         </nav>
 
         {/* Institutional Identity Card (Compact) */}
-        <div className="p-3 relative">
-          <div className="absolute top-0 left-6 right-6 h-px bg-white/5" />
-          <div className="mt-3 bg-white/5 border border-white/5 rounded-xl p-3 group hover:bg-white/10 transition-all cursor-pointer relative overflow-hidden flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center text-primary font-black text-xs shadow-lg">AA</div>
+        <div className="p-2 relative">
+          <div className="absolute top-0 left-4 right-4 h-px bg-white/5" />
+          <div className="mt-2 bg-white/5 border border-white/5 rounded-lg p-2 group hover:bg-white/10 transition-all cursor-pointer relative overflow-hidden flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-md bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center text-primary font-black text-[10px] shadow-lg">AA</div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black text-white truncate uppercase tracking-tight">Angel Admin</p>
-              <p className="text-[8px] font-bold text-primary uppercase tracking-widest mt-0.5">Institutional</p>
+              <p className="text-[9px] font-black text-white truncate uppercase tracking-tight">Angel Admin</p>
+              <p className="text-[7px] font-bold text-primary uppercase tracking-widest">Institutional</p>
             </div>
-            <div className="w-7 h-7 rounded-md bg-white/5 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 transition-all">
-              <Settings size={14} />
+            <div className="w-6 h-6 rounded bg-white/5 flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/10 transition-all">
+              <Settings size={12} />
             </div>
           </div>
         </div>
@@ -901,10 +917,10 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
             <div className="w-1 h-4 bg-primary rounded-full" />
             <div>
               <h1 className="text-base font-black text-slate-900 tracking-tight uppercase leading-none">
-                {activeTab === 'library' ? 'Inventory' : activeTab === 'generate' ? 'AI Lab' : 'Studio'}
+                {activeTab === 'library' ? 'Inventory' : activeTab === 'generate' ? 'AI Lab' : activeTab === 'answer' ? 'Answer Studio' : activeTab === 'book' ? 'Book Architect' : 'Studio'}
               </h1>
               <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                Protocol: {activeTab === 'library' ? 'Assets' : 'Synthesis'}
+                Protocol: {activeTab === 'library' ? 'Assets' : activeTab === 'generate' ? 'Synthesis' : activeTab === 'answer' ? 'Analysis' : activeTab === 'book' ? 'Creation' : 'Orchestration'}
               </p>
             </div>
 
@@ -1017,6 +1033,30 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                 </button>
               </div>
 
+              {/* Advanced Filter Panel */}
+              <AdvancedFilterPanel
+                showPanel={showFilterPanel}
+                setShowPanel={setShowFilterPanel}
+                topicFilter={topicFilter}
+                setTopicFilter={setTopicFilter}
+                sectionFilter={sectionFilter}
+                setSectionFilter={setSectionFilter}
+                collectionFilter={collectionFilter}
+                setCollectionFilter={setCollectionFilter}
+                aiGeneratedFilter={aiGeneratedFilter}
+                setAiGeneratedFilter={setAiGeneratedFilter}
+                flaggedFilter={flaggedFilter}
+                setFlaggedFilter={setFlaggedFilter}
+                smartPreset={smartPreset}
+                uniqueTopics={uniqueTopics}
+                uniqueSections={uniqueSections}
+                uniqueCollections={uniqueCollections}
+                filteredCount={filteredLibrary.length}
+                totalCount={library.length}
+                clearAllFilters={clearAllFilters}
+                applySmartPreset={applySmartPreset}
+              />
+
 
               {selectedIds.length > 0 && (
                 <div className="bg-gradient-to-r from-red-50 to-primary/5 p-4 rounded-xl border border-red-200 flex flex-col gap-4 animate-in slide-in-from-top-4 duration-500 shadow-lg">
@@ -1045,6 +1085,13 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                       >
                         <Edit3 size={14} />
                         {showBulkEdit ? 'Close Edit' : 'Bulk Edit'}
+                      </button>
+                      <button
+                        onClick={() => setIsSetWizardOpen(true)}
+                        className="h-10 px-5 bg-indigo-600 text-white rounded-lg text-[11px] font-black uppercase transition-all hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/30 flex items-center gap-2 shadow-md"
+                      >
+                        <FileJson size={14} />
+                        Create Set
                       </button>
                       <button
                         onClick={handleBulkDelete}
@@ -1200,198 +1247,233 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
           )}
 
           {activeTab === 'generate' && (
-            <div className="max-w-full mx-auto space-y-4 animate-in fade-in duration-500">
-              {/* Intelligence Lab Header */}
-              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                <div>
-                  <h2 className="text-lg font-black text-slate-900 tracking-tight uppercase leading-none">Intelligence Lab</h2>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">AI Orchestration</p>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-md border border-slate-200">
-                  <div className="flex flex-col items-end">
-                    <span className="text-[8px] font-bold text-slate-400 uppercase leading-none">Model Status</span>
-                    <span className="text-[10px] font-black text-primary uppercase">Optimized</span>
-                  </div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                </div>
-              </div>
+            <div className="max-w-full mx-auto animate-in fade-in duration-500 h-full flex flex-col gap-3">
+              {/* SPLIT LAYOUT CONTAINER */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full min-h-0">
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                {/* Configuration Matrix */}
-                <div className="lg:col-span-4 space-y-4">
-                  <div className="bg-white p-4 rounded-lg border border-slate-200 relative overflow-hidden shadow-sm">
-                    <div className="space-y-4 relative z-10">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Domain</label>
-                        <div className="relative">
+                {/* LEFT COLUMN: CONTROL & INPUT (TOOLS) - 40% */}
+                <div className="lg:col-span-5 flex flex-col gap-3 h-full overflow-y-auto no-scrollbar pb-10">
+
+                  {/* 1. COMPACT TOOLBAR */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm shrink-0 flex flex-col gap-3 sticky top-0 z-20">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Context */}
+                      <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 h-10 flex-1 min-w-[140px]">
+                        <Book size={14} className="text-slate-400" />
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Context</span>
                           <select
-                            className="w-full h-10 bg-slate-50 rounded-md px-3 font-bold text-slate-800 border border-slate-200 focus:border-primary/30 transition-all outline-none appearance-none cursor-pointer text-sm"
+                            className="bg-transparent text-xs font-bold text-slate-800 outline-none w-full cursor-pointer"
                             value={genParams.subject}
                             onChange={(e) => setGenParams({ ...genParams, subject: e.target.value, topic: '' })}
                           >
                             {SUBJECTS.map(s => <option key={s}>{s}</option>)}
                           </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Count</label>
+                      {/* Model */}
+                      <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2 h-10 w-32">
+                        <div className="flex flex-col w-full">
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none">Model</span>
+                          <select
+                            className="bg-transparent text-[10px] font-bold text-indigo-600 outline-none cursor-pointer w-full"
+                            value={availableModels.findIndex(m => m.modelId === selectedAIModel.modelId)}
+                            onChange={e => setSelectedAIModel(availableModels[parseInt(e.target.value)])}
+                          >
+                            {availableModels.map((model, idx) => (
+                              <option key={model.modelId} value={idx}>{model.displayName}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Params Row */}
+                    <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col w-12">
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest pl-1">Qty</span>
                           <input
                             type="number"
-                            className="w-full h-10 bg-slate-50 rounded-md px-3 font-bold text-sm text-slate-800 border border-slate-200 focus:border-primary/30 outline-none"
+                            min={1} max={50}
+                            className="w-full h-7 bg-slate-50 border border-slate-200 rounded px-1 text-xs font-bold text-slate-800 outline-none focus:border-primary"
                             value={genParams.count}
                             onChange={e => setGenParams({ ...genParams, count: parseInt(e.target.value) })}
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Quality</label>
-                          <div className="relative">
-                            <select
-                              className="w-full h-10 bg-slate-50 rounded-md px-3 font-bold text-xs text-slate-800 border border-slate-200 focus:border-primary/30 outline-none appearance-none cursor-pointer"
-                              value={genParams.difficulty}
-                              onChange={e => setGenParams({ ...genParams, difficulty: e.target.value as any })}
-                            >
-                              {['Easy', 'Medium', 'Hard', 'Expert'].map(d => <option key={d}>{d}</option>)}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={12} />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Syntax</label>
-                        <div className="relative">
+                        <div className="flex flex-col w-20">
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest pl-1">Level</span>
                           <select
-                            className="w-full h-10 bg-slate-50 rounded-md px-3 font-bold text-xs text-slate-800 border border-slate-200 focus:border-primary/30 outline-none appearance-none cursor-pointer"
+                            className="w-full h-7 bg-slate-50 border border-slate-200 rounded px-1 text-[10px] font-bold text-slate-800 outline-none focus:border-primary"
+                            value={genParams.difficulty}
+                            onChange={e => setGenParams({ ...genParams, difficulty: e.target.value as any })}
+                          >
+                            {['Easy', 'Medium', 'Hard', 'Expert'].map(d => <option key={d}>{d}</option>)}
+                          </select>
+                        </div>
+                        <div className="flex flex-col w-20">
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest pl-1">Lang</span>
+                          <select
+                            className="w-full h-7 bg-slate-50 border border-slate-200 rounded px-1 text-[10px] font-bold text-slate-800 outline-none focus:border-primary"
                             value={genParams.language}
                             onChange={e => setGenParams({ ...genParams, language: e.target.value })}
                           >
                             {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
                           </select>
-                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
                         </div>
                       </div>
 
                       <button
                         onClick={handleGenerate}
                         disabled={isGenerating}
-                        className="w-full h-10 bg-slate-900 text-white rounded-md font-black uppercase tracking-widest hover:bg-primary transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 text-[11px] shadow-lg shadow-slate-900/10"
+                        className="h-8 px-4 bg-slate-900 text-white rounded-lg font-black uppercase tracking-wider hover:bg-primary transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 text-[10px] shadow-lg shadow-slate-900/20"
                       >
-                        {isGenerating ? (
-                          <>
-                            <RefreshCw size={14} className="animate-spin" />
-                            Synchronizing...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles size={20} className="group-hover:rotate-12 transition-transform" />
-                            Initialize Synthesis
-                          </>
-                        )}
+                        {isGenerating ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} className="text-primary" />}
+                        {isGenerating ? 'Running...' : 'Initialize'}
                       </button>
                     </div>
                   </div>
 
-                  {/* Model Performance Vector (Compact) */}
-                  <div className="bg-primary p-4 rounded-lg text-white shadow-lg shadow-primary/10 relative overflow-hidden group">
-                    <Layers className="absolute -right-4 -bottom-4 text-white/10 group-hover:scale-110 transition-all" size={80} />
-                    <div className="relative z-10">
-                      <h4 className="text-[9px] font-black uppercase tracking-widest opacity-60 mb-1">Logic Status</h4>
-                      <p className="text-[11px] font-bold leading-relaxed opacity-90">AI Synthesis utilizing historical patterns and source material.</p>
+                  {/* 2. CONFIGURATION PANEL */}
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-2">
+                    <SubjectSpecificPanel
+                      subject={genParams.subject}
+                      onParamsChange={(params) => {
+                        setGenParams({
+                          ...genParams,
+                          ...params,
+                          topic: params.topic || params.category || genParams.topic
+                        });
+                      }}
+                    />
+                  </div>
+
+                  {/* 3. INPUT CANVAS */}
+                  <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[300px]">
+                    <div className="p-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <Layers size={12} /> Source Material
+                      </label>
+                      <AutoDetectionFeedback
+                        mode={inputMode}
+                        data={inputData}
+                        detectedTopic={genParams.topic}
+                        isAnalysing={false}
+                      />
                     </div>
+                    <InputPanel onInputChange={handleInputChange} className="h-full border-0 shadow-none p-0" />
                   </div>
                 </div>
 
-                {/* Synthesis Stream / Topic Focus */}
-                <div className="lg:col-span-8 space-y-4">
-                  {/* PRD Step 1: Input Panel (Multi-modal) */}
-                  <InputPanel onInputChange={handleInputChange} className="shadow-sm" />
+                {/* RIGHT COLUMN: RESULTS (OUTPUT) - 60% */}
+                <div className="lg:col-span-7 flex flex-col h-full min-h-0 bg-slate-100/50 rounded-2xl border border-slate-200/60 overflow-hidden relative">
 
-                  {/* Auto Detection Feedback */}
-                  <AutoDetectionFeedback 
-                    mode={inputMode} 
-                    data={inputData} 
-                    detectedTopic={genParams.topic} 
-                  />
-
-                  {/* AI Suggested Topics - Quick Select (Optional, kept for convenience) */}
-                  {suggestedTopics.length > 0 && inputMode === 'text' && (
-                    <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Sparkles size={14} className="text-primary" />
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AI Suggestions</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {suggestedTopics.slice(0, 5).map(t => (
-                          <button
-                            key={t}
-                            onClick={() => setGenParams(prev => ({ ...prev, topic: t, context: t }))}
-                            className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-[10px] font-bold text-slate-600 hover:border-primary hover:text-primary transition-all"
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </div>
+                  {/* Result Header */}
+                  <div className="h-12 bg-white border-b border-slate-200 px-4 flex items-center justify-between shrink-0 shadow-sm z-10">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${generatedQuestions.length > 0 ? 'bg-success animate-pulse' : 'bg-slate-300'}`} />
+                      <h3 className="font-black text-xs uppercase tracking-widest text-slate-800">Intelligence Output</h3>
+                      {generatedQuestions.length > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[9px] font-bold text-slate-500 border border-slate-200">
+                          {generatedQuestions.length} Items
+                        </span>
+                      )}
                     </div>
-                  )}
 
-                  {generatedQuestions.length > 0 && (
-                    <div className="bg-white rounded-lg border border-slate-200 shadow-lg overflow-hidden animate-in slide-in-from-top-4 duration-500">
-                      <div className="p-3 bg-slate-900 flex justify-between items-center text-white">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-                            <CheckCircle size={16} />
-                          </div>
-                          <div>
-                            <h3 className="font-black text-[11px] uppercase tracking-widest leading-none">Synthesis Result</h3>
-                            <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">Staged Assets</p>
-                          </div>
+                    {generatedQuestions.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <div className="flex bg-slate-100 rounded p-0.5 border border-slate-200">
+                          {['English', 'Hindi', 'Bilingual'].map(lang => (
+                            <button
+                              key={lang}
+                              onClick={() => setViewLanguage(lang as any)}
+                              className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase transition-all ${viewLanguage === lang ? 'bg-primary text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                              {lang === 'Bilingual' ? 'Mix' : lang}
+                            </button>
+                          ))}
                         </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => setGeneratedQuestions([])} className="h-8 px-4 text-[10px] font-bold uppercase text-slate-400 hover:text-white transition-all">Discard</button>
-                          <button onClick={handleSaveGenerated} className="h-8 px-4 bg-primary text-white rounded-md text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-all">Integrate All</button>
-                        </div>
+                        <button
+                          onClick={() => { if (confirm("Clear results?")) setGeneratedQuestions([]); }}
+                          className="p-1.5 text-slate-400 hover:text-error hover:bg-error/5 rounded-md transition-all"
+                          title="Discard"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        <button
+                          onClick={handleSaveGenerated}
+                          className="h-7 px-3 bg-primary text-white rounded-md text-[9px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-all shadow-sm flex items-center gap-1.5"
+                        >
+                          <Save size={12} /> Save
+                        </button>
                       </div>
-                      <div className="divide-y divide-slate-100">
+                    )}
+                  </div>
+
+                  {/* Scrollable Content Area */}
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-4 relative">
+                    {generatedQuestions.length === 0 ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pointer-events-none select-none">
+                        <Sparkles size={48} className="mb-4 opacity-50" />
+                        <p className="text-sm font-black uppercase tracking-widest opacity-60">Ready to Generate</p>
+                        <p className="text-[10px] font-medium max-w-[200px] text-center mt-2 opacity-50">Configure your parameters on the left and click Initialize.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {generatedQuestions.map((q, i) => (
-                          <div key={q.id || i} className="p-4 hover:bg-slate-50 transition-colors relative group">
+                          <div key={q.id || i} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative">
                             <button
                               onClick={() => { setEditingQuestion(q); setIsEditingGenerated(true); }}
-                              className="absolute top-4 right-4 w-7 h-7 bg-white text-slate-400 rounded-md border border-slate-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:text-primary"
+                              className="absolute top-2 right-2 w-6 h-6 bg-slate-50 text-slate-400 rounded-md border border-slate-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-white hover:text-primary hover:border-primary/30"
                               title="Edit"
                             >
-                              <Edit3 size={14} />
+                              <Edit3 size={10} />
                             </button>
-                            <div className="space-y-3 mb-4">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-black text-primary uppercase tracking-widest">Asset {i + 1}</span>
-                                <div className="h-px flex-1 bg-slate-100"></div>
-                              </div>
-                              <div className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 prose-sm" dangerouslySetInnerHTML={{ __html: q.question_eng }} />
-                              {q.question_hin && <div className="text-[11px] font-medium text-slate-400 italic line-clamp-1" dangerouslySetInnerHTML={{ __html: q.question_hin }} />}
+
+                            <div className="mb-3 pr-6">
+                              <span className="inline-block text-[8px] font-black text-primary uppercase tracking-widest mb-1.5 opacity-50">#{i + 1}</span>
+                              {(viewLanguage === 'English' || viewLanguage === 'Bilingual') && (
+                                <div className="text-[11px] font-bold text-slate-800 leading-snug" dangerouslySetInnerHTML={{ __html: q.question_eng }} />
+                              )}
+                              {(viewLanguage === 'Hindi' || viewLanguage === 'Bilingual') && q.question_hin && (
+                                <div className={`font-medium text-slate-600 leading-snug mt-1 ${viewLanguage === 'Hindi' ? 'text-[11px] font-bold text-slate-800' : 'text-[10px] italic'}`} dangerouslySetInnerHTML={{ __html: q.question_hin }} />
+                              )}
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              {[q.option1_eng, q.option2_eng, q.option3_eng, q.option4_eng].map((opt, oi) => (
-                                <div key={oi} className={`px-3 py-1.5 rounded-md border flex items-center gap-3 transition-all ${parseInt(q.answer) === oi + 1 ? 'bg-success/5 border-success/20 text-success' : 'bg-white border-slate-100 text-slate-400'}`}>
-                                  <div className={`w-5 h-5 rounded flex items-center justify-center text-[9px] font-black shrink-0 ${parseInt(q.answer) === oi + 1 ? 'bg-success text-white' : 'bg-slate-100 text-slate-300'}`}>
+
+                            <div className="space-y-1.5">
+                              {[
+                                { e: q.option1_eng, h: q.option1_hin },
+                                { e: q.option2_eng, h: q.option2_hin },
+                                { e: q.option3_eng, h: q.option3_hin },
+                                { e: q.option4_eng, h: q.option4_hin }
+                              ].map((opt, oi) => (
+                                <div key={oi} className={`px-2 py-1.5 rounded-lg border flex items-center gap-2 transition-all ${parseInt(q.answer) === oi + 1 ? 'bg-success/5 border-success/30' : 'bg-slate-50/50 border-slate-100'}`}>
+                                  <div className={`w-4 h-4 rounded flex items-center justify-center text-[9px] font-black shrink-0 ${parseInt(q.answer) === oi + 1 ? 'bg-success text-white shadow-sm' : 'bg-slate-200 text-slate-400'}`}>
                                     {String.fromCharCode(65 + oi)}
                                   </div>
-                                  <div className="text-[11px] font-bold truncate" dangerouslySetInnerHTML={{ __html: opt }} />
+                                  <div className="flex-1 min-w-0">
+                                    {(viewLanguage === 'English' || viewLanguage === 'Bilingual') && (
+                                      <div className="text-[9px] font-bold text-slate-700 truncate" dangerouslySetInnerHTML={{ __html: opt.e }} />
+                                    )}
+                                    {(viewLanguage === 'Hindi' || viewLanguage === 'Bilingual') && opt.h && (
+                                      <div className={`truncate ${viewLanguage === 'Hindi' ? 'text-[9px] font-bold text-slate-700' : 'text-[8px] font-medium text-slate-500 italic'}`} dangerouslySetInnerHTML={{ __html: opt.h }} />
+                                    )}
+                                  </div>
                                 </div>
                               ))}
                             </div>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
+
               </div>
             </div>
-          )
-          }
+          )}
+
           {
             activeTab === 'sets' && (
               <div className="max-w-full mx-auto space-y-4 animate-in fade-in duration-500">
@@ -1487,6 +1569,10 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
               </div>
             )
           }
+
+
+          {activeTab === 'answer' && <AnswerGenerator />}
+          {activeTab === 'book' && <BookStudio />}
         </main >
       </div >
 
@@ -2077,36 +2163,39 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
 
       {
         editingQuestion && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-6xl max-h-[95vh] rounded-lg shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-300">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-2 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-[98vw] h-[92vh] rounded-lg shadow-2xl flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-300">
               {/* Studio Header (Compact) */}
-              <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-white relative">
-                <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-primary via-accent-pink to-accent-purple"></div>
+              <div className="px-4 py-2 border-b border-slate-200 flex items-center justify-between bg-white shrink-0 h-14">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-slate-50 text-primary rounded-md flex items-center justify-center border border-slate-100 shadow-sm">
-                    <Edit3 size={20} />
+                  <div className="w-8 h-8 bg-indigo-50 text-primary rounded-lg flex items-center justify-center border border-indigo-100/50 shadow-sm">
+                    <Edit3 size={16} />
                   </div>
                   <div>
-                    <h3 className="text-[13px] font-black text-slate-900 uppercase tracking-widest leading-none">Refinement Studio</h3>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Asset Optimization</p>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight leading-none">Refinement Studio</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Asset Optimization</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">
+                <div className="flex items-center gap-3">
+                  {/* Language Toggle */}
+                  <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                     <button
                       onClick={() => setEditingLang('eng')}
-                      className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-wider rounded transition-all ${editingLang === 'eng' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                      className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-md transition-all ${editingLang === 'eng' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
                       English
                     </button>
                     <button
                       onClick={() => setEditingLang('hin')}
-                      className={`px-4 py-1.5 text-[9px] font-black uppercase tracking-wider rounded transition-all ${editingLang === 'hin' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                      className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-md transition-all ${editingLang === 'hin' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
                       Hindi
                     </button>
                   </div>
+
+                  <div className="h-6 w-px bg-slate-200" />
+
                   <button
                     onClick={() => { setEditingQuestion(null); setIsEditingGenerated(false); }}
                     className="w-8 h-8 rounded-md bg-slate-100 text-slate-400 hover:bg-error hover:text-white transition-all flex items-center justify-center border border-slate-200"
@@ -2116,191 +2205,184 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto no-scrollbar bg-slate-50/20">
-                <div className="p-6 space-y-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Content Vector */}
-                    <div className="lg:col-span-12 space-y-6">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <RichEditor
-                          label="Master Question Vector"
-                          value={editingLang === 'eng' ? editingQuestion.question_eng : editingQuestion.question_hin}
-                          onChange={(val) => setEditingQuestion({ ...editingQuestion, [editingLang === 'eng' ? 'question_eng' : 'question_hin']: val })}
-                          minHeight="140px"
-                        />
-                        <RichEditor
-                          label="Analytical Logic Synthesis"
-                          value={editingLang === 'eng' ? editingQuestion.solution_eng : editingQuestion.solution_hin}
-                          onChange={(val) => setEditingQuestion({ ...editingQuestion, [editingLang === 'eng' ? 'solution_eng' : 'solution_hin']: val })}
-                          minHeight="140px"
-                        />
-                      </div>
+              {/* SPLIT STUDIO LAYOUT */}
+              <div className="flex flex-1 overflow-hidden bg-slate-50/30">
 
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between px-1">
-                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Response Matrix Architecture</label>
-                          <div className="flex items-center gap-1.5 px-3 py-1 bg-primary/5 rounded-md border border-primary/10">
-                            <CheckCircle size={12} className="text-primary" />
-                            <span className="text-[8px] font-black text-primary uppercase tracking-widest">Select Termination Point</span>
+                {/* LEFT: CONTENT CANVAS (Scrollable) */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-4">
+                  <div className="max-w-[1920px] mx-auto space-y-4">
+
+                    {/* 1. Core Vector (Question & Solution) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <RichEditor
+                        label="Master Question Vector"
+                        value={editingLang === 'eng' ? editingQuestion.question_eng : editingQuestion.question_hin}
+                        onChange={(val) => setEditingQuestion({ ...editingQuestion, [editingLang === 'eng' ? 'question_eng' : 'question_hin']: val })}
+                        minHeight="140px"
+                        className="shadow-sm border-slate-200 flex-1"
+                      />
+                      <RichEditor
+                        label="Analytical Logic Synthesis"
+                        value={editingLang === 'eng' ? editingQuestion.solution_eng : editingQuestion.solution_hin}
+                        onChange={(val) => setEditingQuestion({ ...editingQuestion, [editingLang === 'eng' ? 'solution_eng' : 'solution_hin']: val })}
+                        minHeight="140px"
+                        className="shadow-sm border-slate-200 flex-1"
+                      />
+                    </div>
+
+                    {/* 2. Response Matrix */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2 px-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <Layers size={14} /> Response Matrix Architecture
+                        </label>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Correct Option:</span>
+                          <div className="flex bg-white border border-slate-200 rounded p-0.5">
+                            {[1, 2, 3, 4].map(i => (
+                              <button
+                                key={i}
+                                onClick={() => setEditingQuestion({ ...editingQuestion, answer: i.toString() })}
+                                className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-black transition-all ${editingQuestion.answer === i.toString() ? 'bg-success text-white shadow-sm' : 'text-slate-300 hover:bg-slate-50'}`}
+                              >
+                                {String.fromCharCode(64 + i)}
+                              </button>
+                            ))}
                           </div>
                         </div>
+                      </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {[1, 2, 3, 4, 5].map(i => {
-                            const field = `option${i}_${editingLang}` as keyof Question;
-                            if (i === 5 && !(editingQuestion as any).option5_eng && !(editingQuestion as any).option5_hin) return null;
-                            const isCorrect = editingQuestion.answer === i.toString();
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {[1, 2, 3, 4, 5].map(i => {
+                          const field = `option${i}_${editingLang}` as keyof Question;
+                          if (i === 5 && !(editingQuestion as any).option5_eng && !(editingQuestion as any).option5_hin) return null;
+                          const isCorrect = editingQuestion.answer === i.toString();
 
-                            return (
-                              <div key={i} className={`relative group/opt p-1 rounded-lg transition-all ${isCorrect ? 'bg-success/5 border border-success/20 shadow-sm' : 'bg-white border border-slate-200 hover:border-slate-300'}`}>
-                                <RichEditor
-                                  label={`Response Vector 0${i}`}
-                                  value={(editingQuestion as any)[field] || ''}
-                                  onChange={(val) => setEditingQuestion({ ...editingQuestion, [field]: val } as any)}
-                                  minHeight="60px"
-                                  accessory={
-                                    <button
-                                      onClick={() => setEditingQuestion({ ...editingQuestion, answer: i.toString() })}
-                                      className={`h-7 px-3 rounded-md transition-all flex items-center gap-2 ${isCorrect ? 'bg-success text-white shadow-sm' : 'bg-slate-50 text-slate-400 hover:text-primary'}`}
-                                    >
-                                      <span className="text-[9px] font-black uppercase tracking-wider">{isCorrect ? 'VALID' : 'MARK'}</span>
-                                      {isCorrect ? <Check size={12} /> : <CircleDot size={12} />}
-                                    </button>
-                                  }
-                                />
-                              </div>
-                            );
-                          })}
+                          return (
+                            <div key={i} className={`relative group/opt transition-all ${isCorrect ? 'ring-2 ring-success/20 rounded-xl' : ''}`}>
+                              <RichEditor
+                                label={`Option 0${i}`}
+                                value={(editingQuestion as any)[field] || ''}
+                                onChange={(val) => setEditingQuestion({ ...editingQuestion, [field]: val } as any)}
+                                minHeight="80px"
+                                className={`${isCorrect ? 'border-success/40' : ''}`}
+                                accessory={
+                                  isCorrect && <div className="px-2 py-0.5 bg-success text-white text-[8px] font-black uppercase rounded tracking-wider">Correct</div>
+                                }
+                              />
+                            </div>
+                          );
+                        })}
 
-                          {!(editingQuestion as any).option5_eng && (
-                            <button
-                              onClick={() => setEditingQuestion({ ...editingQuestion, option5_eng: 'None of the above', option5_hin: 'इनमें से कोई नहीं' } as any)}
-                              className="h-full min-h-[100px] border-2 border-dashed border-slate-200 rounded-lg flex flex-col items-center justify-center gap-2 text-slate-300 hover:border-primary/30 hover:text-primary hover:bg-slate-50 transition-all group"
-                            >
-                              <div className="w-8 h-8 rounded-md bg-slate-100 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
-                                <Plus size={16} />
-                              </div>
-                              <span className="text-[9px] font-black uppercase tracking-widest">Init Option 05</span>
-                            </button>
-                          )}
-                        </div>
+                        {/* Add Option 5 Button */}
+                        {!(editingQuestion as any).option5_eng && (
+                          <button
+                            onClick={() => setEditingQuestion({ ...editingQuestion, option5_eng: 'None of the above', option5_hin: 'इनमें से कोई नहीं' } as any)}
+                            className="h-full min-h-[80px] border border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:border-primary hover:text-primary hover:bg-white transition-all group"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all shadow-sm">
+                              <Plus size={16} />
+                            </div>
+                            <span className="text-[9px] font-black uppercase tracking-widest">Add Option 5</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Metadata Matrix */}
-                  <div className="bg-slate-900 p-6 rounded-lg text-white space-y-6 relative overflow-hidden group">
-                    <Database className="absolute -right-10 -bottom-10 text-white/5 group-hover:scale-110 transition-transform duration-700" size={150} />
+                {/* RIGHT: METADATA SIDEBAR (Fixed) */}
+                <div className="w-72 bg-white border-l border-slate-200 flex flex-col h-full overflow-y-auto no-scrollbar shadow-xl shadow-slate-200/50 z-10 shrink-0">
+                  <div className="p-3 border-b border-slate-100 bg-slate-50/50 h-14 flex items-center">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                      <Database size={12} /> Configuration
+                    </h4>
+                  </div>
 
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-                          <Tag size={16} />
+                  <div className="p-4 space-y-4">
+                    {/* Primary Metadata */}
+                    {[
+                      { label: 'Subject', value: editingQuestion.subject, options: SUBJECTS, key: 'subject' },
+                      { label: 'Type', value: editingQuestion.type, options: ['MCQ', 'TrueFalse', 'ShortAnswer', 'FillBlanks'], key: 'type' },
+                      { label: 'Difficulty', value: editingQuestion.difficulty, options: ['Easy', 'Medium', 'Hard', 'Expert'], key: 'difficulty' },
+                      { label: 'Language', value: editingQuestion.language, options: LANGUAGES, key: 'language' }
+                    ].map(field => (
+                      <div key={field.label} className="space-y-1">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{field.label}</label>
+                        <div className="relative">
+                          <select
+                            className="w-full h-7 bg-slate-50 border border-slate-200 rounded px-2 font-bold text-[10px] text-slate-700 focus:border-primary transition-all outline-none appearance-none cursor-pointer hover:bg-slate-100"
+                            value={field.value}
+                            onChange={e => setEditingQuestion({ ...editingQuestion, [field.key]: e.target.value } as any)}
+                          >
+                            {field.options.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={12} />
                         </div>
-                        <h4 className="text-sm font-black uppercase tracking-widest">Institutional Metadata</h4>
                       </div>
+                    ))}
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {[
-                          { label: 'Academic Domain (Subject)', value: editingQuestion.subject, options: SUBJECTS, key: 'subject' },
-                          { label: 'Evaluation Type', value: editingQuestion.type, options: ['MCQ', 'TrueFalse', 'ShortAnswer', 'FillBlanks'], key: 'type' },
-                          { label: 'Complexity Index', value: editingQuestion.difficulty, options: ['Easy', 'Medium', 'Hard', 'Expert'], key: 'difficulty' },
-                          { label: 'Language', value: editingQuestion.language, options: LANGUAGES, key: 'language' }
-                        ].map(field => (
-                          <div key={field.label} className="space-y-1.5">
-                            <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">{field.label}</label>
-                            <div className="relative">
-                              <select
-                                className="w-full h-10 bg-white/5 border border-white/10 rounded-md px-3 font-bold text-[11px] text-white focus:bg-white/10 focus:border-primary transition-all outline-none appearance-none cursor-pointer"
-                                value={field.value}
-                                onChange={e => setEditingQuestion({ ...editingQuestion, [field.key]: e.target.value } as any)}
-                              >
-                                {field.options.map(o => <option key={o} value={o} className="bg-slate-900 text-white">{o}</option>)}
-                              </select>
-                              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" size={12} />
-                            </div>
-                          </div>
-                        ))}
+                    <div className="h-px bg-slate-100 my-2" />
 
-                        {/* Dropdown-enabled fields with existing value suggestions */}
-                        {[
-                          { label: 'Chapter', value: editingQuestion.chapter || '', placeholder: 'Select or type chapter...', key: 'chapter', options: uniqueChapters },
-                          { label: 'Topic', value: editingQuestion.topic || '', placeholder: 'Select or type topic...', key: 'topic', options: uniqueTopics },
-                          { label: 'Exam', value: editingQuestion.exam || '', placeholder: 'Select or type exam...', key: 'exam', options: uniqueExams },
-                          { label: 'Section/Shift', value: editingQuestion.section || '', placeholder: 'Select or type section...', key: 'section', options: uniqueSections },
-                          { label: 'Year', value: editingQuestion.year || '', placeholder: 'Select or type year...', key: 'year', options: uniqueYears },
-                          { label: 'Collection', value: editingQuestion.collection || '', placeholder: 'Select or type collection...', key: 'collection', options: uniqueCollections },
-                          { label: 'Previous Of', value: editingQuestion.previous_of || '', placeholder: 'Select or type source...', key: 'previous_of', options: uniquePreviousOf }
-                        ].map(field => (
-                          <div key={field.label} className="space-y-1.5">
-                            <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                              {field.label}
-                              {field.options.length > 0 && (
-                                <span className="text-primary/60 text-[7px]">({field.options.length} available)</span>
-                              )}
-                            </label>
-                            <div className="relative">
-                              <input
-                                type="text"
-                                list={`datalist-${field.key}`}
-                                className="w-full h-10 bg-white/5 border border-white/10 rounded-md px-3 pr-8 font-bold text-[11px] text-white focus:bg-white/10 focus:border-primary transition-all outline-none placeholder:text-white/20"
-                                value={field.value}
-                                onChange={e => setEditingQuestion({ ...editingQuestion, [field.key]: e.target.value })}
-                                placeholder={field.placeholder}
-                              />
-                              <datalist id={`datalist-${field.key}`}>
-                                {field.options.map(opt => (
-                                  <option key={opt} value={opt} />
-                                ))}
-                              </datalist>
-                              {field.options.length > 0 && (
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" size={12} />
-                              )}
-                            </div>
-                          </div>
-                        ))}
-
-                        {/* Date field */}
-                        <div className="space-y-1.5">
-                          <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Date</label>
+                    {/* Autocomplete Fields */}
+                    {[
+                      { label: 'Exam', value: editingQuestion.exam || '', placeholder: 'Target Exam...', key: 'exam', options: uniqueExams },
+                      { label: 'Year', value: editingQuestion.year || '', placeholder: 'Year...', key: 'year', options: uniqueYears },
+                      { label: 'Topic', value: editingQuestion.topic || '', placeholder: 'Topic...', key: 'topic', options: uniqueTopics },
+                      { label: 'Chapter', value: editingQuestion.chapter || '', placeholder: 'Chapter...', key: 'chapter', options: uniqueChapters },
+                    ].map(field => (
+                      <div key={field.label} className="space-y-1">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                          {field.label}
+                        </label>
+                        <div className="relative">
                           <input
-                            type="date"
-                            className="w-full h-10 bg-white/5 border border-white/10 rounded-md px-3 font-bold text-[11px] text-white focus:bg-white/10 focus:border-primary transition-all outline-none"
-                            value={editingQuestion.date || ''}
-                            onChange={e => setEditingQuestion({ ...editingQuestion, date: e.target.value })}
+                            type="text"
+                            list={`datalist-${field.key}`}
+                            className="w-full h-7 bg-slate-50 border border-slate-200 rounded px-2 pr-6 font-bold text-[10px] text-slate-700 focus:border-primary transition-all outline-none placeholder:text-slate-300"
+                            value={field.value}
+                            onChange={e => setEditingQuestion({ ...editingQuestion, [field.key]: e.target.value })}
+                            placeholder={field.placeholder}
                           />
+                          <datalist id={`datalist-${field.key}`}>
+                            {field.options.map(opt => (
+                              <option key={opt} value={opt} />
+                            ))}
+                          </datalist>
                         </div>
                       </div>
+                    ))}
 
-                      {/* Video URL */}
-                      <div className="mt-4 space-y-1.5">
-                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Video URL (Solution Video Link)</label>
+                    {/* Video & Tags */}
+                    <div className="space-y-3 pt-2">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Video Solution</label>
                         <input
                           type="url"
-                          className="w-full h-10 bg-white/5 border border-white/10 rounded-md px-4 font-bold text-[11px] text-white focus:bg-white/10 focus:border-primary transition-all outline-none placeholder:text-white/20"
+                          className="w-full h-7 bg-slate-50 border border-slate-200 rounded px-2 font-bold text-[10px] text-slate-700 focus:border-primary outline-none"
                           value={editingQuestion.video || ''}
                           onChange={e => setEditingQuestion({ ...editingQuestion, video: e.target.value })}
-                          placeholder="https://youtube.com/watch?v=..."
+                          placeholder="https://..."
                         />
                       </div>
-
-                      <div className="mt-4 space-y-1.5">
-                        <label className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Tags (comma separated)</label>
-                        <input
-                          type="text"
-                          className="w-full h-10 bg-white/5 border border-white/10 rounded-md px-4 font-bold text-[11px] text-white focus:bg-white/10 focus:border-primary transition-all outline-none placeholder:text-white/20"
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Search Tags</label>
+                        <textarea
+                          className="w-full h-14 bg-slate-50 border border-slate-200 rounded px-2 py-2 font-bold text-[10px] text-slate-700 focus:border-primary outline-none resize-none leading-relaxed"
                           value={editingQuestion.tags?.join(', ') || ''}
                           onChange={e => setEditingQuestion({ ...editingQuestion, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
-                          placeholder="Tags separated by commas... (e.g., PYQ, Geometry, 2024)"
+                          placeholder="Tags..."
                         />
                       </div>
                     </div>
                   </div>
                 </div>
+
               </div>
 
               {/* Studio Action Dock (Compact) */}
-              <div className="px-6 py-4 bg-white border-t border-slate-200 flex items-center justify-between">
+              <div className="px-6 py-3 bg-white border-t border-slate-200 flex items-center justify-between shrink-0 h-14">
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
@@ -2319,15 +2401,15 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setEditingQuestion(null); setIsEditingGenerated(false); }}
-                    className="h-10 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-all"
+                    className="h-9 px-6 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-all"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveEdit}
-                    className="h-10 px-6 bg-slate-900 text-white rounded-md font-black uppercase tracking-wider shadow-sm hover:bg-primary transition-all flex items-center gap-2 text-[11px]"
+                    className="h-9 px-6 bg-slate-900 text-white rounded-md font-black uppercase tracking-wider shadow-sm hover:bg-primary transition-all flex items-center gap-2 text-[10px]"
                   >
-                    <Save size={14} /> {isEditingGenerated ? 'Sync Asset' : 'Save'}
+                    <Save size={12} /> {isEditingGenerated ? 'Sync Asset' : 'Save'}
                   </button>
                 </div>
               </div>
@@ -2441,58 +2523,67 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
       }
 
       {/* Edit Topic Modal */}
-      {editingTopicIndex !== null && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-300">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-md flex items-center justify-center">
-                  <Edit3 size={20} />
+      {
+        editingTopicIndex !== null && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-md rounded-lg shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-300">
+              <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-md flex items-center justify-center">
+                    <Edit3 size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">Edit Topic</h3>
+                    <p className="text-xs text-slate-500">Modify your custom topic</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">Edit Topic</h3>
-                  <p className="text-xs text-slate-500">Modify your custom topic</p>
-                </div>
+                <button
+                  onClick={() => { setEditingTopicIndex(null); setEditingTopicValue(''); }}
+                  className="w-8 h-8 rounded-md bg-slate-100 text-slate-400 hover:bg-error hover:text-white transition-all flex items-center justify-center"
+                >
+                  <X size={16} />
+                </button>
               </div>
-              <button
-                onClick={() => { setEditingTopicIndex(null); setEditingTopicValue(''); }}
-                className="w-8 h-8 rounded-md bg-slate-100 text-slate-400 hover:bg-error hover:text-white transition-all flex items-center justify-center"
-              >
-                <X size={16} />
-              </button>
-            </div>
 
-            <div className="p-6">
-              <label className="block text-sm font-bold text-slate-600 mb-2">Topic Name</label>
-              <input
-                type="text"
-                value={editingTopicValue}
-                onChange={(e) => setEditingTopicValue(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveTopicEdit()}
-                className="w-full h-12 px-4 border border-slate-200 rounded-md text-sm font-medium focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                placeholder="Enter topic name..."
-                autoFocus
-              />
-            </div>
+              <div className="p-6">
+                <label className="block text-sm font-bold text-slate-600 mb-2">Topic Name</label>
+                <input
+                  type="text"
+                  value={editingTopicValue}
+                  onChange={(e) => setEditingTopicValue(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveTopicEdit()}
+                  className="w-full h-12 px-4 border border-slate-200 rounded-md text-sm font-medium focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  placeholder="Enter topic name..."
+                  autoFocus
+                />
+              </div>
 
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
-              <button
-                onClick={() => { setEditingTopicIndex(null); setEditingTopicValue(''); }}
-                className="h-10 px-4 text-sm font-bold text-slate-500 hover:text-slate-700 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveTopicEdit}
-                disabled={!editingTopicValue.trim()}
-                className="h-10 px-6 bg-primary text-white rounded-md text-sm font-bold hover:bg-primary/90 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Save size={16} /> Save Changes
-              </button>
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+                <button
+                  onClick={() => { setEditingTopicIndex(null); setEditingTopicValue(''); }}
+                  className="h-10 px-4 text-sm font-bold text-slate-500 hover:text-slate-700 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveTopicEdit}
+                  disabled={!editingTopicValue.trim()}
+                  className="h-10 px-6 bg-primary text-white rounded-md text-sm font-bold hover:bg-primary/90 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save size={16} /> Save Changes
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
+      {/* Set Wizard Modal */}
+      <SetWizard
+        isOpen={isSetWizardOpen}
+        onClose={() => setIsSetWizardOpen(false)}
+        selectedQuestions={library.filter(q => selectedIds.includes(q.id))}
+        onClearSelection={() => setSelectedIds([])}
+      />
     </div >
   );
 };

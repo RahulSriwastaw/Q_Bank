@@ -1,0 +1,247 @@
+[
+  {
+    "id": "TC001",
+    "title": "Verify Explanation Slide Opacity Reflects Global Card Opacity",
+    "description": "Check that the Explanation Slide background layer respects the global cardOpacity settings without affecting text visibility, ensuring text remains fully visible while background opacity changes.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open SmartBoard with an Explanation Slide"
+      },
+      {
+        "type": "action",
+        "description": "Set global cardOpacity to 50%"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify Explanation Slide background opacity is 50%"
+      },
+      {
+        "type": "action",
+        "description": "Set card background to 'Transparent'"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify Explanation Slide background is fully transparent (no fallback dark color)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify Explanation Slide text opacity remains 100% and text is fully visible"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Verify Option Button Background and Border Respect cardOpacity Setting",
+    "description": "Ensure that the Option Button's background and border colors correctly respond to the global cardOpacity value set in the useBoardStore, affecting their transparency as expected.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to a question card with option buttons"
+      },
+      {
+        "type": "action",
+        "description": "Adjust global cardOpacity to 70%"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that option buttons background and borders are rendered with 70% opacity"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Verify Compact Explanation Header Layout",
+    "description": "Verify that the Explanation Slide header has updated padding and font size to be more compact, maximizing visible content area without clipping or overlapping elements.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open an Explanation Slide card"
+      },
+      {
+        "type": "assertion",
+        "description": "Check that the header padding is smaller than previous design baseline"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify font size of the header text is smaller as per updated specs"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm content area below the header is expanded compared to prior design"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Verify Explanation Slide Toggle Button Moved to BoardToolbar",
+    "description": "Ensure the toggle button for showing/hiding the Explanation Slide is now accessible only through the BoardToolbar and no longer present inside individual Question Cards.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to a SmartBoard containing Question Cards"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that Explanation Slide toggle button is present in the BoardToolbar component"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that Explanation Slide toggle button is not found inside any Question Card"
+      },
+      {
+        "type": "action",
+        "description": "Click the Explanation Slide toggle button in BoardToolbar"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify Explanation Slide visibility toggles on/off accordingly"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Verify cardOpacity and textOpacity Configuration via StyleToolbar",
+    "description": "Test the ability to configure cardOpacity and textOpacity from the StyleToolbar and validate that changes apply correctly to question cards and text elements on the board.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open StyleToolbar on SmartBoard"
+      },
+      {
+        "type": "action",
+        "description": "Adjust cardOpacity setting to 60%"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm Question Cards backgrounds reflect 60% opacity"
+      },
+      {
+        "type": "action",
+        "description": "Adjust textOpacity setting to 80%"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text within Question Cards renders with 80% opacity"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Verify Opacity Settings Persist Across Board Sessions",
+    "description": "Validate that cardOpacity and textOpacity settings remain consistent after saving and reloading the SmartBoard session.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Set cardOpacity to 40% and textOpacity to 90% via StyleToolbar"
+      },
+      {
+        "type": "action",
+        "description": "Save the current board session"
+      },
+      {
+        "type": "action",
+        "description": "Reload the board session"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify cardOpacity remains at 40%"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify textOpacity remains at 90%"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Verify Opacity Changes Gracefully Handle Invalid Inputs",
+    "description": "Check that providing invalid values for cardOpacity and textOpacity in StyleToolbar input are properly handled with validation errors or fallback to defaults.",
+    "category": "error handling",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt to set cardOpacity to a negative value (-10%)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify input is rejected and user is shown validation error or value resets to minimum allowed"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to set textOpacity above 100% (e.g. 120%)"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm input is rejected and set to maximum allowed (100%) or error message displayed"
+      },
+      {
+        "type": "action",
+        "description": "Enter non-numeric values (e.g. 'abc') for opacity settings"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify invalid input is handled gracefully with error and no crash"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Verify Opacity Settings Are Consistent Between Components",
+    "description": "Ensure that cardOpacity changes in store propagate to all affected components like Explanation Slide background, Option Button backgrounds, and BoardToolbar toggles consistently and without delay.",
+    "category": "integration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Set cardOpacity to 75% in useBoardStore"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify Explanation Slide background opacity is 75%"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify Option Buttons backgrounds and borders opacity are 75%"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify no component shows mismatched opacity values"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Verify Drag Performance and Smoothness",
+    "description": "Confirm that dragging the Explanation Slide is smooth and follows the cursor 1:1 without lag or 'floaty' behavior caused by CSS transitions.",
+    "category": "performance",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Start dragging the Explanation Slide rapidly"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the card position updates instantly with the cursor"
+      },
+      {
+        "type": "assertion",
+        "description": "Check that there is no 'catch-up' animation effect when stopping the drag"
+      }
+    ]
+  }
+]

@@ -50,18 +50,22 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   boardBackgroundImage: null,
   boardOpacity: 1,
 
-  // Global Slide Strokes
+  // Global Slide Strokes & Images
   slideStrokes: {},
+  slideImages: {},
   saveSlideStrokes: (slideIndex, strokes) => set((state) => ({
     slideStrokes: { ...state.slideStrokes, [slideIndex]: strokes }
+  })),
+  saveSlideImage: (slideIndex, imageUrl) => set((state) => ({
+    slideImages: { ...state.slideImages, [slideIndex]: imageUrl }
   })),
   loadSlideStrokes: (slideIndex) => {
     const { slideStrokes } = get();
     // Load strokes for the slide, or empty if none exist
-    set({ 
-      strokes: slideStrokes[slideIndex] || [], 
-      history: [], 
-      redoStack: [] 
+    set({
+      strokes: slideStrokes[slideIndex] || [],
+      history: [],
+      redoStack: []
     });
   },
 
@@ -107,24 +111,24 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   },
 
   deleteStroke: (id) => {
-      const { strokes } = get();
-      set({ strokes: strokes.filter(s => s.id !== id), selectedId: null });
+    const { strokes } = get();
+    set({ strokes: strokes.filter(s => s.id !== id), selectedId: null });
   },
 
   duplicateStroke: (id) => {
-      const { strokes } = get();
-      const selectedStroke = strokes.find(s => s.id === id);
-      if (selectedStroke) {
-          const newId = crypto.randomUUID();
-          const newStroke = {
-              ...selectedStroke,
-              id: newId,
-              x: (selectedStroke.x || 0) + 20,
-              y: (selectedStroke.y || 0) + 20,
-              points: selectedStroke.points.map(p => ({ ...p, x: p.x + 20, y: p.y + 20 }))
-          };
-          set({ strokes: [...strokes, newStroke], selectedId: newId });
-      }
+    const { strokes } = get();
+    const selectedStroke = strokes.find(s => s.id === id);
+    if (selectedStroke) {
+      const newId = crypto.randomUUID();
+      const newStroke = {
+        ...selectedStroke,
+        id: newId,
+        x: (selectedStroke.x || 0) + 20,
+        y: (selectedStroke.y || 0) + 20,
+        points: selectedStroke.points.map(p => ({ ...p, x: p.x + 20, y: p.y + 20 }))
+      };
+      set({ strokes: [...strokes, newStroke], selectedId: newId });
+    }
   },
 
   addStroke: (stroke) => {
@@ -154,21 +158,21 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     // So before we finish this stroke, the "previous state" was (strokes - 1).
     // Let's refine: When a stroke starts, we don't push history. When it ENDS, we assume the action is done.
     // BUT to undo "adding the stroke", we need the state *before* it was added.
-    
+
     // Better approach: 
     // 1. `addStroke` pushes the *current* strokes (before add) to history.
     // 2. But `addStroke` is called on MouseDown. `updateStroke` on MouseMove. `completeStroke` on MouseUp.
     // So:
     // MouseDown -> save current strokes to history -> add new empty/start stroke.
-    
+
     // Let's refactor logic slightly in the component or here.
     // For now, let's just make the store simple and let the component handle history triggers? 
     // Or handle it here.
-    
+
     // Let's keep it simple: `history` stores the full array of strokes.
     // We push to history ONLY when `completeStroke` is called? 
     // No, we push the *previous* state.
-    
+
     // Let's do this manually in the component for fine control, or:
     // We'll just provide the primitives here.
   },
@@ -176,10 +180,10 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   undo: () => {
     const { strokes, history, redoStack } = get();
     if (history.length === 0) return;
-    
+
     const previous = history[history.length - 1];
     const newHistory = history.slice(0, -1);
-    
+
     set({
       strokes: previous,
       history: newHistory,

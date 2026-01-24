@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type Tool = 'cursor' | 'pen' | 'highlighter' | 'eraser' | 'rectangle' | 'circle' | 'triangle' | 'arrow' | 'line' | 'text' | 'laser' | 'star' | 'image';
+export type Tool = 'cursor' | 'pen' | 'highlighter' | 'eraser' | 'rectangle' | 'circle' | 'triangle' | 'arrow' | 'line' | 'text' | 'laser' | 'star' | 'image' | 'pentagon' | 'hexagon' | 'speech_bubble';
 export type EraserMode = 'partial' | 'lasso' | 'clear';
 export type BorderStyle = 'solid' | 'dashed' | 'dotted' | 'dash-dot';
 
@@ -50,7 +50,7 @@ export interface BoardState {
   strokes: Stroke[];
   history: Stroke[][];
   redoStack: Stroke[][];
-  
+
   // Shape Properties
   fillColor: string;
   isFillEnabled: boolean;
@@ -67,6 +67,8 @@ export interface BoardState {
     backgroundColor: string;
     position: { x: number; y: number };
     dimensions: { width: number; height: number };
+    explanationPosition?: { x: number; y: number };
+    explanationSize?: { width: number; height: number };
     scale: number;
     textOpacity: number;
     cardOpacity: number;
@@ -81,7 +83,9 @@ export interface BoardState {
   boardOpacity: number;
 
   slideStrokes: Record<number, Stroke[]>;
+  slideImages: Record<number, string>;
   saveSlideStrokes: (slideIndex: number, strokes: Stroke[]) => void;
+  saveSlideImage: (slideIndex: number, imageUrl: string) => void;
   loadSlideStrokes: (slideIndex: number) => void;
 
   setQuestionStyle: (style: Partial<BoardState['questionStyle']>) => void;
@@ -110,7 +114,7 @@ export interface BoardState {
   setOpacity: (opacity: number) => void;
   setSelectedId: (id: string | null) => void;
   setLaserConfig: (config: Partial<LaserConfig>) => void;
-  
+
   // Z-Index Control
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
@@ -118,6 +122,6 @@ export interface BoardState {
   duplicateStroke: (id: string) => void;
 
   // UI State
-  activePanel: 'none' | 'laser' | 'style' | 'pen_settings' | 'shape' | 'eraser_options';
-  setActivePanel: (panel: 'none' | 'laser' | 'style' | 'pen_settings' | 'shape' | 'eraser_options') => void;
+  activePanel: 'none' | 'laser' | 'style' | 'pen_settings' | 'shape' | 'eraser_options' | 'image_options' | 'calculator';
+  setActivePanel: (panel: 'none' | 'laser' | 'style' | 'pen_settings' | 'shape' | 'eraser_options' | 'image_options' | 'calculator') => void;
 }

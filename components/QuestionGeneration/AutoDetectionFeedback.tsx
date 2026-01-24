@@ -1,14 +1,15 @@
 import React from 'react';
-import { Sparkles, FileText, Link, Image, File } from 'lucide-react';
+import { Sparkles, FileText, Link, Image, File, Loader2 } from 'lucide-react';
 import { InputMode, InputData } from './InputPanel';
 
 interface AutoDetectionFeedbackProps {
   mode: InputMode;
   data: InputData;
   detectedTopic: string;
+  isAnalysing?: boolean;
 }
 
-export const AutoDetectionFeedback: React.FC<AutoDetectionFeedbackProps> = ({ mode, data, detectedTopic }) => {
+export const AutoDetectionFeedback: React.FC<AutoDetectionFeedbackProps> = ({ mode, data, detectedTopic, isAnalysing = false }) => {
   if (!mode) return null;
 
   return (
@@ -36,7 +37,7 @@ export const AutoDetectionFeedback: React.FC<AutoDetectionFeedbackProps> = ({ mo
             {mode === 'image' && 'Visual Analysis'}
             {mode === 'pdf' && 'Document Analysis'}
           </h4>
-          
+
           <p className="text-xs text-slate-500 font-medium truncate max-w-[300px]">
             {mode === 'text' && data.text && data.text.length < 100 && (
               <span className="text-primary">{data.text}</span>
@@ -56,8 +57,16 @@ export const AutoDetectionFeedback: React.FC<AutoDetectionFeedbackProps> = ({ mo
         </div>
 
         {/* Status Indicator */}
-        <div className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold border border-emerald-100">
-          Ready to Generate
+        {/* Status Indicator */}
+        <div className={`px-3 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1.5 ${isAnalysing ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+          {isAnalysing ? (
+            <>
+              <Loader2 size={10} className="animate-spin" />
+              Analyzing...
+            </>
+          ) : (
+            'Ready to Generate'
+          )}
         </div>
       </div>
     </div>

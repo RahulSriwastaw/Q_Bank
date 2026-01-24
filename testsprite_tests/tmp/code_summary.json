@@ -3,45 +3,48 @@
     "TypeScript",
     "React",
     "Vite",
-    "Google GenAI SDK"
+    "TailwindCSS",
+    "Zustand",
+    "lucide-react"
   ],
   "features": [
     {
-      "name": "generateQuestions",
-      "description": "Generates educational questions using Google Gemini AI based on provided parameters and input context (text, image, pdf, url).",
+      "name": "Explanation Slide Opacity",
+      "description": "Implemented separate background layer for Explanation Slide to respect global card opacity settings without affecting text visibility. Added cardOpacity support to styles.",
       "files": [
-        "services/geminiService.ts"
-      ],
-      "api_doc": {
-        "openapi": "3.0.0",
-        "info": {
-          "title": "Question Generation API",
-          "version": "1.0.0"
-        },
-        "paths": {
-          "/generateQuestions": {
-            "post": {
-              "summary": "Generate questions",
-              "requestBody": {
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "subject": { "type": "string" },
-                        "topic": { "type": "string" },
-                        "difficulty": { "type": "string" },
-                        "count": { "type": "integer" },
-                        "inputMode": { "type": "string" }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+        "components/SmartBoard/SmartBoard.tsx"
+      ]
+    },
+    {
+      "name": "Option Button Opacity",
+      "description": "Linked Option Button background and border styles to the global cardOpacity setting in useBoardStore.",
+      "files": [
+        "components/SmartBoard/SmartBoard.tsx"
+      ]
+    },
+    {
+      "name": "Compact Explanation Header",
+      "description": "Updated Explanation Slide header to be more compact (smaller padding/font) to maximize content area.",
+      "files": [
+        "components/SmartBoard/SmartBoard.tsx"
+      ]
+    },
+    {
+      "name": "Explanation Toggle in Toolbar",
+      "description": "Moved the Explanation Slide toggle button from the Question Card to the main BoardToolbar for better accessibility.",
+      "files": [
+        "components/SmartBoard/BoardToolbar.tsx",
+        "components/SmartBoard/SmartBoard.tsx"
+      ]
+    },
+    {
+      "name": "Opacity Settings Control",
+      "description": "Updated StyleToolbar and Types to support cardOpacity and textOpacity configuration.",
+      "files": [
+        "components/SmartBoard/StyleToolbar.tsx",
+        "components/SmartBoard/types.ts",
+        "components/SmartBoard/store.ts"
+      ]
     }
   ]
 }
