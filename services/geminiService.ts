@@ -399,5 +399,50 @@ export const geminiService = {
       console.error("Chapter content gen failed", e);
       throw e;
     }
+  },
+
+  proofreadContent: async (content: string): Promise<any> => {
+    const prompt = `
+      Act as an expert proofreader and editor for educational content. 
+      Analyze the text below for grammar, spelling, punctuation, style, and clarity issues.
+      
+      Text to Analyze:
+      "${content}"
+
+      Return a JSON response with the following structure:
+      {
+        "segments": [
+          {
+            "text": "original segment text",
+            "type": "text" | "error" | "suggestion", 
+            "severity": "info" | "warning" | "critical",
+            "message": "Explanation of the issue (if any)",
+            "replacement": "Safe replacement text (if error)"
+          }
+        ],
+        "summary": "Brief summary of the quality and main issues found.",
+        "score": 85 // Quality score 0-100
+      }
+
+      Rules:
+      1. Break the text into logical segments (words/phrases). 
+      2. Keep "text" type for correct parts.
+      3. Use "error" type for objective mistakes (grammar, spelling).
+      4. Use "suggestion" type for stylistic improvements.
+      5. Ensure reassembling the "text" fields produces the original text approximately.
+      6. "replacement" should be the corrected version of that specific segment.
+    `;
+
+    try {
+      const model = getAI().getGenerativeModel({
+        model: 'gemini-2.0-flash-exp',
+        generationConfig: { responseMimeType: "application/json" }
+      });
+      const result = await model.generateContent(prompt);
+      return JSON.parse(result.response.text());
+    } catch (e) {
+      console.error("Proofreading failed", e);
+      throw e;
+    }
   }
 };

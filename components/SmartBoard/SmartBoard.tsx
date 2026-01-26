@@ -594,10 +594,10 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
                                                 </div>
                                                 <div className="space-y-0.5 min-w-0 flex-1">
                                                     {(langMode === 'both' || langMode === 'eng') && (
-                                                        <div className={`font-medium truncate ${show ? 'text-emerald-100' : 'text-inherit'}`} style={{ fontSize: '0.9em', lineHeight: questionStyle.lineHeight }} dangerouslySetInnerHTML={{ __html: opt.e }} />
+                                                        <div className={`font-medium ${show ? 'text-emerald-100' : 'text-inherit'}`} style={{ fontSize: '0.9em', lineHeight: questionStyle.lineHeight }} dangerouslySetInnerHTML={{ __html: opt.e }} />
                                                     )}
                                                     {(langMode === 'both' || langMode === 'hin') && (
-                                                        <div className={`truncate ${show ? 'text-emerald-200/70' : 'text-inherit opacity-70'}`} style={{ fontSize: '0.8em', lineHeight: questionStyle.lineHeight }} dangerouslySetInnerHTML={{ __html: opt.h }} />
+                                                        <div className={`${show ? 'text-emerald-200/70' : 'text-inherit opacity-70'}`} style={{ fontSize: '0.8em', lineHeight: questionStyle.lineHeight }} dangerouslySetInnerHTML={{ __html: opt.h }} />
                                                     )}
                                                 </div>
                                             </div>
