@@ -1339,8 +1339,8 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                       <button
                         onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
                         className={`h-8 px-3 rounded-lg font-bold uppercase tracking-wider transition-all flex items-center gap-2 text-[9px] border ${autoSaveEnabled
-                            ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20'
-                            : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'
+                          ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20'
+                          : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'
                           }`}
                         title="Automatically save generated questions to the database"
                       >
@@ -1374,7 +1374,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                   </div>
 
                   {/* 3. INPUT CANVAS */}
-                  <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[300px]">
+                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-[200px] shrink-0">
                     <div className="p-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                         <Layers size={12} /> Source Material
@@ -1386,7 +1386,7 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                         isAnalysing={false}
                       />
                     </div>
-                    <InputPanel onInputChange={handleInputChange} className="h-full border-0 shadow-none p-0" />
+                    <InputPanel onInputChange={handleInputChange} className="border-0 shadow-none p-0" />
                   </div>
                 </div>
 

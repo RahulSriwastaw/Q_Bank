@@ -44,7 +44,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({ onInputChange, className
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFiles(Array.from(e.dataTransfer.files));
     }
@@ -79,11 +79,10 @@ export const InputPanel: React.FC<InputPanelProps> = ({ onInputChange, className
         setActiveMode(mode);
         setUploadedFiles([]); // Clear files when switching modes for now
       }}
-      className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 ${
-        activeMode === mode
+      className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 ${activeMode === mode
           ? 'border-primary text-primary bg-primary/5'
           : 'border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-      }`}
+        }`}
     >
       {icon}
       <span>{label}</span>
@@ -91,7 +90,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({ onInputChange, className
   );
 
   return (
-    <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm ${className}`}>
       {/* Tabs */}
       <div className="flex border-b border-slate-200">
         {renderTab('text', 'Text', <FileText size={16} />)}
@@ -111,7 +110,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({ onInputChange, className
                   {textData.length} chars
                 </span>
               </div>
-              
+
               <div className="relative group">
                 <textarea
                   value={textData}
@@ -138,11 +137,10 @@ export const InputPanel: React.FC<InputPanelProps> = ({ onInputChange, className
         {(activeMode === 'image' || activeMode === 'pdf') && (
           <div className="animate-in fade-in duration-300">
             <div
-              className={`relative border-2 border-dashed rounded-xl p-8 transition-all text-center ${
-                dragActive
+              className={`relative border-2 border-dashed rounded-xl p-8 transition-all text-center ${dragActive
                   ? 'border-primary bg-primary/5 scale-[0.99]'
                   : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-              }`}
+                }`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
@@ -155,7 +153,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({ onInputChange, className
                 onChange={handleFileInput}
                 accept={activeMode === 'image' ? "image/*" : "application/pdf"}
               />
-              
+
               <div className="pointer-events-none">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
                   <Upload size={32} />
@@ -232,7 +230,7 @@ export const InputPanel: React.FC<InputPanelProps> = ({ onInputChange, className
                   </button>
                 </div>
               </div>
-              
+
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
                 <AlertCircle size={18} className="text-blue-600 mt-0.5 shrink-0" />
                 <p className="text-xs text-blue-700 leading-relaxed font-medium">
