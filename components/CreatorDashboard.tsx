@@ -664,6 +664,8 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
     reader.readAsText(file);
   };
 
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+
   const handleGenerate = async () => {
     if (!genParams.topic) return alert("Select a topic");
     setIsGenerating(true);
@@ -672,7 +674,17 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
       if (!qs || qs.length === 0) {
         alert("The AI successfully processed your request but returned 0 questions.\n\nThis usually happens if:\n1. The topic is too niche.\n2. The safety filters blocked the content.\n3. The result was not in the expected format.\n\nTry simplifying the topic or using a different model.");
       } else {
-        setGeneratedQuestions(qs);
+        if (autoSaveEnabled) {
+          // Auto-saving logic
+          setIsDataLoading(true);
+          await storageService.saveQuestionsBulk(qs);
+          await refreshLibrary();
+          setIsDataLoading(false);
+          alert(`✨ Success! ${qs.length} questions generated and saved automatically.`);
+          setGeneratedQuestions([]); // Clear preview since it's saved
+        } else {
+          setGeneratedQuestions(qs);
+        }
       }
     } catch (e: any) {
       console.error("Generation failed:", e);
@@ -1323,6 +1335,18 @@ export const CreatorDashboard: React.FC<CreatorDashboardProps> = ({ onLaunchPres
                           </select>
                         </div>
                       </div>
+
+                      <button
+                        onClick={() => setAutoSaveEnabled(!autoSaveEnabled)}
+                        className={`h-8 px-3 rounded-lg font-bold uppercase tracking-wider transition-all flex items-center gap-2 text-[9px] border ${autoSaveEnabled
+                            ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20'
+                            : 'bg-slate-50 text-slate-400 border-slate-200 hover:border-slate-300'
+                          }`}
+                        title="Automatically save generated questions to the database"
+                      >
+                        <div className={`w-2 h-2 rounded-full ${autoSaveEnabled ? 'bg-white animate-pulse' : 'bg-slate-300'}`} />
+                        {autoSaveEnabled ? 'Auto-Save ON' : 'Auto-Save OFF'}
+                      </button>
 
                       <button
                         onClick={handleGenerate}
