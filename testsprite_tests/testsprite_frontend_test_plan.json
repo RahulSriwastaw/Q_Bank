@@ -1,0 +1,330 @@
+[
+  {
+    "id": "TC001",
+    "title": "Universal Content Extraction - Simple Document",
+    "description": "Verify that the system correctly extracts and preserves text from a simple DOCX document without tables or images.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Import a simple DOCX document containing plain text paragraphs."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that all text is extracted completely and formatting such as bold and italics is preserved."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Universal Content Extraction - Complex Document with Tables and Equations",
+    "description": "Ensure extraction and preservation of complex nested tables, images, and equations from PDF input with styling intact.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Import a PDF file containing nested tables, inline equations, and images with styled text."
+      },
+      {
+        "type": "assertion",
+        "description": "Validate that all tables are detected and represented with correct JSON structure, equations are preserved, and images are captured with style."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Multilingual Support - Hindi-English Bilingual Content",
+    "description": "Verify that the system preserves multilingual content including Hindi and English with correct font rendering and special characters.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Import a document containing mixed Hindi and English paragraphs with complex font styles."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that all bilingual text is preserved accurately with proper fonts and no data loss."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "AI-Powered Question Detection Accuracy",
+    "description": "Validate AI detection correctly identifies question boundaries, types (MCQ, short answer, etc.), topics, marks, and contextual associations.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Upload a document with a diverse set of questions including various question types and topics."
+      },
+      {
+        "type": "assertion",
+        "description": "Measure AI detection accuracy and verify that above 95% of questions are correctly classified with accurate metadata."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Rich Database Schema Storage and Retrieval",
+    "description": "Test that the database stores complex question objects with tables, images, equations, metadata, and supports retrieval within 500ms.",
+    "category": "performance",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Save a complex question containing nested tables, images, and mathematical equations to the database."
+      },
+      {
+        "type": "action",
+        "description": "Query the database for the saved question using multiple criteria filter."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the returned question data is complete, correct, and query response time is under 500 milliseconds."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Bulk Import and Batch Edit with AI Suggestions",
+    "description": "Ensure bulk import of 100+ questions works reliably with AI-generated batch editing suggestions and displays clear status feedback.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Import a batch file containing 150 questions in supported formats."
+      },
+      {
+        "type": "action",
+        "description": "Apply AI suggestions to perform batch edits on the imported questions."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that all questions are properly imported and edited, and user interface shows accurate progress and completion status."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Flexible Paper Builder - Manual Mode",
+    "description": "Test manual paper creation where users drag and drop questions, reorder them, and save a custom question paper.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open paper builder and manually drag and drop at least 10 questions."
+      },
+      {
+        "type": "action",
+        "description": "Reorder questions and apply custom metadata tags."
+      },
+      {
+        "type": "action",
+        "description": "Save the created paper."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that paper is saved correctly with question order and metadata preserved."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Flexible Paper Builder - AI-Assisted Smart Generation",
+    "description": "Verify AI-assisted generation of question papers based on selected topics, difficulty, and marks constraints.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Select topics, set difficulty level and total marks, then trigger AI smart generation of a paper."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that generated paper matches criteria and questions are contextually relevant."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Flexible Paper Builder - Template-Driven Quick Start",
+    "description": "Validate paper creation using pre-defined professional templates with instant style switching and live preview.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Choose a predefined template and apply it to generate a new question paper."
+      },
+      {
+        "type": "action",
+        "description": "Switch among different templates and observe live preview updates."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the paper rendering updates immediately and correctly reflects selected template styles."
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Multi-format Export Fidelity",
+    "description": "Verify export of question papers preserves tables, images, equations, and formatting in DOCX, PDF, HTML, Markdown, and Google Docs formats.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Export a paper containing complex tables, images, and equations to each supported format."
+      },
+      {
+        "type": "assertion",
+        "description": "Open exported files and confirm visual fidelity and content accuracy for each format."
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Visual Rich Content Editor - Table and Equation Editing",
+    "description": "Test creation and modification of tables and equations within the WYSIWYG editor with accurate rendering and save functionality.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create a new question and embed a complex table using the visual editor."
+      },
+      {
+        "type": "action",
+        "description": "Insert an equation, edit it visually, and save changes."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that edits to tables and equations are correctly saved and visually rendered in the editor."
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Advanced Search and Filtering Interface",
+    "description": "Verify rich search using multiple criteria and saved presets returns accurate and performant question lists.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Input multiple search filters (topic, difficulty, marks, keywords) and perform search."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure results match all criteria and are returned within 500 milliseconds."
+      },
+      {
+        "type": "action",
+        "description": "Save the filter preset and later load it to repeat the search."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm saved presets recall correct filters and results."
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Session Management and Presentation Tools",
+    "description": "Verify full-screen presentation mode supports timers, bookmarks, annotation tools, and prompts for unsaved changes.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Start a question presentation session with timers and bookmarks."
+      },
+      {
+        "type": "action",
+        "description": "Add annotations and attempt to navigate away without saving."
+      },
+      {
+        "type": "assertion",
+        "description": "Check that unsaved changes prompt appears, and annotations persist after saving."
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Interface Stability on Workflow Transitions",
+    "description": "Ensure smooth, crash-free switching among input, review, generation, and preview stages with no data loss.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Import content and proceed from extraction to question review, then to paper generation and preview."
+      },
+      {
+        "type": "action",
+        "description": "Switch back and forth between stages multiple times."
+      },
+      {
+        "type": "assertion",
+        "description": "Validate no crashes occur and all intermediate data states remain intact."
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Security - Access Control and Data Encryption",
+    "description": "Test role-based access control restricting unauthorized users and verify encryption of sensitive data at rest and in transit.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt data access as a user without required roles."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access is denied and appropriate error message is shown."
+      },
+      {
+        "type": "action",
+        "description": "Inspect database and API communication to check that sensitive data is encrypted."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm encryption protocols are enforced as per industry standards."
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Accessibility Compliance WCAG 2.1 AA",
+    "description": "Validate application meets WCAG 2.1 Level AA using accessibility audit tools and keyboard navigation testing.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Run automated accessibility audits on main interfaces."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm no critical WCAG violations."
+      },
+      {
+        "type": "action",
+        "description": "Navigate entire app using keyboard only."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify all interactive elements are accessible and usable via keyboard."
+      }
+    ]
+  }
+]

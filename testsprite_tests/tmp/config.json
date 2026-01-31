@@ -1,0 +1,16 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "executionArgs": {
+    "projectName": "Q_Bank",
+    "projectPath": "c:\\Users\\angel computer\\OneDrive\\Desktop\\Code\\Q_Bank",
+    "testIds": [],
+    "additionalInstruction": "Verify that TableEditor renders correctly and Gemini extracts table data in the expected JSON format.",
+    "envs": {
+      "API_KEY": "sk-user-9ajZ_qgoxxqHBJ2yHLnTQFGGW233MZA8oXF61hTOpeTKFWWVGYI2wOhgJDWkyDicgdbWFjj1jxQDn9ynsmUfRgLzzCDy6jzb9CpLzJedmpzInLKSUtcNUkB7jk4HjHNjujw"
+    }
+  },
+  "proxy": "http://88377315-227a-4beb-9466-edd479366add:nHPRkhoD6fCxvmtazv8vXnqk61Yj71iW@tun.testsprite.com:8080"
+}
