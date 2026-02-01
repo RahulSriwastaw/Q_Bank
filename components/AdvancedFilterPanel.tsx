@@ -61,6 +61,7 @@ export const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
             {/* Toggle Button */}
             <div className="flex items-center justify-between gap-2">
                 <button
+                    data-testid="advanced-filters-toggle"
                     onClick={() => setShowPanel(!showPanel)}
                     className="h-8 px-4 bg-white border border-slate-200 rounded-md text-[11px] font-bold text-slate-600 hover:border-primary/30 hover:text-primary transition-all flex items-center gap-2"
                 >
@@ -75,6 +76,7 @@ export const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
                             Showing: {filteredCount} / {totalCount}
                         </span>
                         <button
+                            data-testid="clear-all-filters"
                             onClick={clearAllFilters}
                             className="h-7 px-3 bg-error/10 text-error rounded-md text-[10px] font-bold hover:bg-error/20 transition-all flex items-center gap-1"
                         >
@@ -94,6 +96,7 @@ export const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
                         <div className="space-y-1.5">
                             <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Topic</label>
                             <select
+                                data-testid="topic-filter"
                                 value={topicFilter}
                                 onChange={(e) => setTopicFilter(e.target.value)}
                                 className="w-full h-8 px-2 bg-slate-50 border border-slate-200 rounded-md text-[11px] font-medium outline-none focus:border-primary transition-all"
@@ -136,6 +139,7 @@ export const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
                                 Source
                             </label>
                             <select
+                                data-testid="ai-source-filter"
                                 value={aiGeneratedFilter}
                                 onChange={(e) => setAiGeneratedFilter(e.target.value as any)}
                                 className="w-full h-8 px-2 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-primary/20 rounded-md text-[11px] font-bold outline-none focus:border-primary transition-all"
@@ -177,8 +181,8 @@ export const AdvancedFilterPanel: React.FC<AdvancedFilterPanelProps> = ({
                                     key={label}
                                     onClick={() => applySmartPreset(label)}
                                     className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all flex items-center gap-1.5 ${smartPreset === label
-                                            ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                 >
                                     <Icon size={10} />

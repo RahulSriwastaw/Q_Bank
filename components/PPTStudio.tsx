@@ -74,6 +74,7 @@ export const PPTStudio: React.FC<PPTStudioProps> = ({ questions: initialQuestion
                     </div>
                 </div>
                 <button
+                    data-testid="ppt-export-button"
                     onClick={handleExport}
                     disabled={isExporting || questions.length === 0}
                     className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg font-bold uppercase text-xs tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
@@ -85,7 +86,7 @@ export const PPTStudio: React.FC<PPTStudioProps> = ({ questions: initialQuestion
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-                
+
                 {/* Left Panel - Configuration (Collapsible on Desktop) */}
                 <div className={`
                     bg-white border-r border-slate-200 flex flex-col transition-all duration-300 ease-in-out z-20
@@ -124,11 +125,10 @@ export const PPTStudio: React.FC<PPTStudioProps> = ({ questions: initialQuestion
                                     <button
                                         key={theme}
                                         onClick={() => setSelectedTheme(theme)}
-                                        className={`w-full p-2.5 rounded-lg border flex items-center gap-3 transition-all ${
-                                            selectedTheme === theme 
-                                            ? 'border-orange-500 bg-orange-50 ring-1 ring-orange-500/20' 
-                                            : 'border-slate-200 hover:border-slate-300'
-                                        }`}
+                                        className={`w-full p-2.5 rounded-lg border flex items-center gap-3 transition-all ${selectedTheme === theme
+                                                ? 'border-orange-500 bg-orange-50 ring-1 ring-orange-500/20'
+                                                : 'border-slate-200 hover:border-slate-300'
+                                            }`}
                                     >
                                         <div className="w-8 h-8 rounded-md shadow-sm shrink-0" style={{ backgroundColor: themePreview[theme].bg }} />
                                         <div className="text-left flex-1 min-w-0">
@@ -191,7 +191,7 @@ export const PPTStudio: React.FC<PPTStudioProps> = ({ questions: initialQuestion
                 `}>
                     {/* Desktop Collapse Togglers (Absolute positioned) */}
                     <div className="hidden lg:block absolute left-4 top-4 z-40">
-                         <button 
+                        <button
                             onClick={() => setShowLeftPanel(!showLeftPanel)}
                             className="p-1.5 bg-white shadow-md border border-slate-200 rounded-md text-slate-500 hover:text-slate-800 transition-all"
                             title="Toggle Settings Panel"
@@ -200,7 +200,7 @@ export const PPTStudio: React.FC<PPTStudioProps> = ({ questions: initialQuestion
                         </button>
                     </div>
                     <div className="hidden lg:block absolute right-4 top-4 z-40">
-                         <button 
+                        <button
                             onClick={() => setShowRightPanel(!showRightPanel)}
                             className="p-1.5 bg-white shadow-md border border-slate-200 rounded-md text-slate-500 hover:text-slate-800 transition-all"
                             title="Toggle Questions Panel"
@@ -242,12 +242,12 @@ export const PPTStudio: React.FC<PPTStudioProps> = ({ questions: initialQuestion
                             {/* Slide */}
                             <div className="flex-1 w-full relative flex items-center justify-center min-h-0">
                                 {currentQuestion ? (
-                                    <div 
+                                    <div
                                         className="aspect-video w-full h-auto max-h-full rounded-xl shadow-2xl relative overflow-hidden text-[clamp(12px,2vw,16px)]"
                                         style={{ backgroundColor: currentTheme.bg, color: currentTheme.text }}
                                     >
                                         {/* Q# Badge */}
-                                        <div 
+                                        <div
                                             className="absolute top-[5%] left-[5%] text-[0.8em] font-black uppercase tracking-wider px-[0.8em] py-[0.3em] rounded-md"
                                             style={{ backgroundColor: currentTheme.accent, color: '#FFFFFF' }}
                                         >
@@ -276,7 +276,7 @@ export const PPTStudio: React.FC<PPTStudioProps> = ({ questions: initialQuestion
                                                     { l: 'D', t: currentQuestion.option4_eng }
                                                 ].map((opt, i) => (
                                                     <div key={i} className="flex items-center gap-[3%]">
-                                                        <div 
+                                                        <div
                                                             className="w-[1.8em] h-[1.8em] rounded-full flex items-center justify-center text-[0.8em] font-black shrink-0"
                                                             style={{ backgroundColor: currentTheme.accent, color: '#FFFFFF' }}
                                                         >
@@ -347,7 +347,7 @@ export const PPTStudio: React.FC<PPTStudioProps> = ({ questions: initialQuestion
                                     `}>
                                         {idx + 1}
                                     </div>
-                                    
+
                                     <div className="flex-1 min-w-0">
                                         <p className={`text-xs font-bold leading-relaxed line-clamp-2 ${previewSlideIndex === idx ? 'text-slate-800' : 'text-slate-600'}`}>
                                             {q.question_eng}
@@ -365,7 +365,7 @@ export const PPTStudio: React.FC<PPTStudioProps> = ({ questions: initialQuestion
                                     </button>
                                 </div>
                             ))}
-                            
+
                             {questions.length === 0 && (
                                 <div className="h-32 flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-100 rounded-xl">
                                     <FileText size={24} className="mb-2 opacity-50" />
