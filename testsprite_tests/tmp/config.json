@@ -1,16 +1,19 @@
 {
   "status": "commited",
   "type": "frontend",
-  "scope": "codebase",
+  "scope": "diff",
   "localEndpoint": "http://localhost:3000",
   "executionArgs": {
     "projectName": "Q_Bank",
-    "projectPath": "c:\\Users\\angel computer\\OneDrive\\Desktop\\Code\\Q_Bank",
-    "testIds": [],
-    "additionalInstruction": "Verify that TableEditor renders correctly and Gemini extracts table data in the expected JSON format.",
+    "projectPath": "c:\\Users\\kumar\\Desktop\\Code\\Q_Bank",
+    "testIds": [
+      "TC001",
+      "TC008"
+    ],
+    "additionalInstruction": "Focus on verifying that the RichEditor component correctly unmounts and remounts when the language toggle (English/Hindi) is clicked in the Refinement Studio overlay. Ensure that the content displayed in the editor matches the selected language data.",
     "envs": {
-      "API_KEY": "sk-user-9ajZ_qgoxxqHBJ2yHLnTQFGGW233MZA8oXF61hTOpeTKFWWVGYI2wOhgJDWkyDicgdbWFjj1jxQDn9ynsmUfRgLzzCDy6jzb9CpLzJedmpzInLKSUtcNUkB7jk4HjHNjujw"
+      "API_KEY": "sk-user-ngg2ZmfKY_46vwigniG0hBFmQGmJ0Pw94f_GNdVcg-2om6bP7OjILDnYKDKi0wJpUFW1mhrQNUWB-NrXiqQubIAm2_Dtf0-kreWdIuxwT5LAD0SnvnGWksYctXyYxtw61f0"
     }
   },
-  "proxy": "http://88377315-227a-4beb-9466-edd479366add:nHPRkhoD6fCxvmtazv8vXnqk61Yj71iW@tun.testsprite.com:8080"
+  "proxy": "http://954c136c-d10e-4513-b658-99b839ca03db:k1fFug7hu3SCFRzKRjG4ZVI7UUFVPrS5@tun.testsprite.com:8080"
 }

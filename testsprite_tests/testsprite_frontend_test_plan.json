@@ -1,329 +1,257 @@
 [
   {
     "id": "TC001",
-    "title": "Universal Content Extraction - Simple Document",
-    "description": "Verify that the system correctly extracts and preserves text from a simple DOCX document without tables or images.",
+    "title": "Bilingual Refinement Studio Language Switch",
+    "description": "Verify that switching languages in the Bilingual Refinement Studio forces editor remounts and clears the previously shown content, preventing content persistence across English and Hindi modes.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Import a simple DOCX document containing plain text paragraphs."
+        "description": "Open the Bilingual Refinement Studio in English mode."
+      },
+      {
+        "type": "action",
+        "description": "Enter sample question content in English."
+      },
+      {
+        "type": "action",
+        "description": "Switch the editor language to Hindi."
       },
       {
         "type": "assertion",
-        "description": "Check that all text is extracted completely and formatting such as bold and italics is preserved."
+        "description": "Check that the English content is cleared and Hindi mode editor is empty."
+      },
+      {
+        "type": "action",
+        "description": "Enter sample question content in Hindi."
+      },
+      {
+        "type": "action",
+        "description": "Switch back to English."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that Hindi content is cleared and English editor is empty or shows previously saved English content correctly after editor remount."
       }
     ]
   },
   {
     "id": "TC002",
-    "title": "Universal Content Extraction - Complex Document with Tables and Equations",
-    "description": "Ensure extraction and preservation of complex nested tables, images, and equations from PDF input with styling intact.",
-    "category": "functional",
-    "priority": "High",
+    "title": "Bilingual Refinement Studio 3-Column Layout Verification",
+    "description": "Verify the presence and correct layout of the 3 columns for Question, Answers/Logic, and Metadata in the Bilingual Refinement Studio.",
+    "category": "ui",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Import a PDF file containing nested tables, inline equations, and images with styled text."
+        "description": "Open the Bilingual Refinement Studio."
       },
       {
         "type": "assertion",
-        "description": "Validate that all tables are detected and represented with correct JSON structure, equations are preserved, and images are captured with style."
+        "description": "Confirm that three columns labelled Question, Answers/Logic, and Metadata are visible and properly aligned."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that content can be entered and scrolled independently in each column."
       }
     ]
   },
   {
     "id": "TC003",
-    "title": "Multilingual Support - Hindi-English Bilingual Content",
-    "description": "Verify that the system preserves multilingual content including Hindi and English with correct font rendering and special characters.",
+    "title": "Undo/Redo Functionality in Rich Text Editor",
+    "description": "Verify that the Undo and Redo stacks function correctly allowing users to revert and restore their editing changes consistently.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Import a document containing mixed Hindi and English paragraphs with complex font styles."
+        "description": "Open the Advanced Rich Text Editor."
+      },
+      {
+        "type": "action",
+        "description": "Enter some text content."
+      },
+      {
+        "type": "action",
+        "description": "Make several edits by adding, deleting, and formatting text."
+      },
+      {
+        "type": "action",
+        "description": "Trigger Undo multiple times."
       },
       {
         "type": "assertion",
-        "description": "Check that all bilingual text is preserved accurately with proper fonts and no data loss."
+        "description": "Confirm that text reverts step by step correctly to previous states."
+      },
+      {
+        "type": "action",
+        "description": "Trigger Redo multiple times."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that undone changes are restored step by step correctly."
       }
     ]
   },
   {
     "id": "TC004",
-    "title": "AI-Powered Question Detection Accuracy",
-    "description": "Validate AI detection correctly identifies question boundaries, types (MCQ, short answer, etc.), topics, marks, and contextual associations.",
+    "title": "Math Symbol Insertion in Rich Text Editor",
+    "description": "Verify that the Math Symbol insertion tool correctly inserts appropriate mathematical symbols into the editor at cursor position.",
     "category": "functional",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Upload a document with a diverse set of questions including various question types and topics."
+        "description": "Open the Advanced Rich Text Editor in a question creation form."
+      },
+      {
+        "type": "action",
+        "description": "Place cursor inside the editor text area."
+      },
+      {
+        "type": "action",
+        "description": "Select and insert various mathematical symbols (e.g., ∑, ∫, √, π) from the Math Symbol insertion tool."
       },
       {
         "type": "assertion",
-        "description": "Measure AI detection accuracy and verify that above 95% of questions are correctly classified with accurate metadata."
+        "description": "Verify that each selected symbol is inserted at the correct cursor position within the text."
       }
     ]
   },
   {
     "id": "TC005",
-    "title": "Rich Database Schema Storage and Retrieval",
-    "description": "Test that the database stores complex question objects with tables, images, equations, metadata, and supports retrieval within 500ms.",
-    "category": "performance",
-    "priority": "High",
+    "title": "Font Size Control in Rich Text Editor",
+    "description": "Verify that changing font size via the Font Size control updates the selected text accordingly and persists upon saving.",
+    "category": "functional",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Save a complex question containing nested tables, images, and mathematical equations to the database."
+        "description": "Enter a sample paragraph into the Advanced Rich Text Editor."
       },
       {
         "type": "action",
-        "description": "Query the database for the saved question using multiple criteria filter."
+        "description": "Select a portion of the text."
+      },
+      {
+        "type": "action",
+        "description": "Change font size using the Font Size control to various sizes (small, medium, large)."
       },
       {
         "type": "assertion",
-        "description": "Verify that the returned question data is complete, correct, and query response time is under 500 milliseconds."
+        "description": "Check that the font size of the selected text changes immediately as per selection."
+      },
+      {
+        "type": "action",
+        "description": "Save changes and reload the editor."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm that the font size changes persist after reload."
       }
     ]
   },
   {
     "id": "TC006",
-    "title": "Bulk Import and Batch Edit with AI Suggestions",
-    "description": "Ensure bulk import of 100+ questions works reliably with AI-generated batch editing suggestions and displays clear status feedback.",
+    "title": "Text and Background Color Pickers Functionality",
+    "description": "Validate that text color and background color pickers update the selected text style accurately in real-time and persist on save.",
     "category": "functional",
-    "priority": "High",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Import a batch file containing 150 questions in supported formats."
+        "description": "Input text into the Advanced Rich Text Editor."
       },
       {
         "type": "action",
-        "description": "Apply AI suggestions to perform batch edits on the imported questions."
+        "description": "Select a section of the text."
+      },
+      {
+        "type": "action",
+        "description": "Change the text color using the text color picker."
       },
       {
         "type": "assertion",
-        "description": "Check that all questions are properly imported and edited, and user interface shows accurate progress and completion status."
+        "description": "Verify the selected text color updates immediately."
+      },
+      {
+        "type": "action",
+        "description": "Change the background color of the selected text using the background color picker."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the background color updates immediately."
+      },
+      {
+        "type": "action",
+        "description": "Save changes and reload editor."
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure the selected colors persist after reload."
       }
     ]
   },
   {
     "id": "TC007",
-    "title": "Flexible Paper Builder - Manual Mode",
-    "description": "Test manual paper creation where users drag and drop questions, reorder them, and save a custom question paper.",
+    "title": "Code View (HTML Source) Editing and Formatting",
+    "description": "Ensure Code View toggle enables source HTML editing with proper syntax formatting and changes are reflected when switching back to visual editor.",
     "category": "functional",
-    "priority": "Medium",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Open paper builder and manually drag and drop at least 10 questions."
+        "description": "Open the Advanced Rich Text Editor."
       },
       {
         "type": "action",
-        "description": "Reorder questions and apply custom metadata tags."
+        "description": "Enter some formatted content (text with bold, color, and math symbols)."
       },
       {
         "type": "action",
-        "description": "Save the created paper."
+        "description": "Toggle to Code View to edit HTML source."
       },
       {
         "type": "assertion",
-        "description": "Verify that paper is saved correctly with question order and metadata preserved."
+        "description": "Verify displayed HTML source is correctly formatted and represents the visual content."
+      },
+      {
+        "type": "action",
+        "description": "Edit the HTML source code, such as changing tags or content."
+      },
+      {
+        "type": "action",
+        "description": "Toggle back to visual editor mode."
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm the visual editor reflects the updated source content properly."
       }
     ]
   },
   {
     "id": "TC008",
-    "title": "Flexible Paper Builder - AI-Assisted Smart Generation",
-    "description": "Verify AI-assisted generation of question papers based on selected topics, difficulty, and marks constraints.",
-    "category": "functional",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Select topics, set difficulty level and total marks, then trigger AI smart generation of a paper."
-      },
-      {
-        "type": "assertion",
-        "description": "Check that generated paper matches criteria and questions are contextually relevant."
-      }
-    ]
-  },
-  {
-    "id": "TC009",
-    "title": "Flexible Paper Builder - Template-Driven Quick Start",
-    "description": "Validate paper creation using pre-defined professional templates with instant style switching and live preview.",
-    "category": "functional",
+    "title": "Toolbar Layout and Accessibility in Rich Text Editor",
+    "description": "Check that the toolbar is intuitively laid out with all controls accessible, properly labeled, and keyboard navigable.",
+    "category": "ui",
     "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Choose a predefined template and apply it to generate a new question paper."
-      },
-      {
-        "type": "action",
-        "description": "Switch among different templates and observe live preview updates."
+        "description": "Open the Advanced Rich Text Editor."
       },
       {
         "type": "assertion",
-        "description": "Verify that the paper rendering updates immediately and correctly reflects selected template styles."
-      }
-    ]
-  },
-  {
-    "id": "TC010",
-    "title": "Multi-format Export Fidelity",
-    "description": "Verify export of question papers preserves tables, images, equations, and formatting in DOCX, PDF, HTML, Markdown, and Google Docs formats.",
-    "category": "functional",
-    "priority": "High",
-    "steps": [
+        "description": "Verify all expected toolbar buttons and controls are visible and correctly labeled with tooltips."
+      },
       {
         "type": "action",
-        "description": "Export a paper containing complex tables, images, and equations to each supported format."
+        "description": "Navigate toolbar using keyboard (Tab and arrow keys)."
       },
       {
         "type": "assertion",
-        "description": "Open exported files and confirm visual fidelity and content accuracy for each format."
-      }
-    ]
-  },
-  {
-    "id": "TC011",
-    "title": "Visual Rich Content Editor - Table and Equation Editing",
-    "description": "Test creation and modification of tables and equations within the WYSIWYG editor with accurate rendering and save functionality.",
-    "category": "functional",
-    "priority": "Medium",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Create a new question and embed a complex table using the visual editor."
-      },
-      {
-        "type": "action",
-        "description": "Insert an equation, edit it visually, and save changes."
-      },
-      {
-        "type": "assertion",
-        "description": "Confirm that edits to tables and equations are correctly saved and visually rendered in the editor."
-      }
-    ]
-  },
-  {
-    "id": "TC012",
-    "title": "Advanced Search and Filtering Interface",
-    "description": "Verify rich search using multiple criteria and saved presets returns accurate and performant question lists.",
-    "category": "functional",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Input multiple search filters (topic, difficulty, marks, keywords) and perform search."
-      },
-      {
-        "type": "assertion",
-        "description": "Ensure results match all criteria and are returned within 500 milliseconds."
-      },
-      {
-        "type": "action",
-        "description": "Save the filter preset and later load it to repeat the search."
-      },
-      {
-        "type": "assertion",
-        "description": "Confirm saved presets recall correct filters and results."
-      }
-    ]
-  },
-  {
-    "id": "TC013",
-    "title": "Session Management and Presentation Tools",
-    "description": "Verify full-screen presentation mode supports timers, bookmarks, annotation tools, and prompts for unsaved changes.",
-    "category": "functional",
-    "priority": "Medium",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Start a question presentation session with timers and bookmarks."
-      },
-      {
-        "type": "action",
-        "description": "Add annotations and attempt to navigate away without saving."
-      },
-      {
-        "type": "assertion",
-        "description": "Check that unsaved changes prompt appears, and annotations persist after saving."
-      }
-    ]
-  },
-  {
-    "id": "TC014",
-    "title": "Interface Stability on Workflow Transitions",
-    "description": "Ensure smooth, crash-free switching among input, review, generation, and preview stages with no data loss.",
-    "category": "functional",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Import content and proceed from extraction to question review, then to paper generation and preview."
-      },
-      {
-        "type": "action",
-        "description": "Switch back and forth between stages multiple times."
-      },
-      {
-        "type": "assertion",
-        "description": "Validate no crashes occur and all intermediate data states remain intact."
-      }
-    ]
-  },
-  {
-    "id": "TC015",
-    "title": "Security - Access Control and Data Encryption",
-    "description": "Test role-based access control restricting unauthorized users and verify encryption of sensitive data at rest and in transit.",
-    "category": "security",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Attempt data access as a user without required roles."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify access is denied and appropriate error message is shown."
-      },
-      {
-        "type": "action",
-        "description": "Inspect database and API communication to check that sensitive data is encrypted."
-      },
-      {
-        "type": "assertion",
-        "description": "Confirm encryption protocols are enforced as per industry standards."
-      }
-    ]
-  },
-  {
-    "id": "TC016",
-    "title": "Accessibility Compliance WCAG 2.1 AA",
-    "description": "Validate application meets WCAG 2.1 Level AA using accessibility audit tools and keyboard navigation testing.",
-    "category": "functional",
-    "priority": "Medium",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Run automated accessibility audits on main interfaces."
-      },
-      {
-        "type": "assertion",
-        "description": "Confirm no critical WCAG violations."
-      },
-      {
-        "type": "action",
-        "description": "Navigate entire app using keyboard only."
-      },
-      {
-        "type": "assertion",
-        "description": "Verify all interactive elements are accessible and usable via keyboard."
+        "description": "Ensure focus moves appropriately and controls are operable via keyboard only."
       }
     ]
   }

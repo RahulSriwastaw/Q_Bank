@@ -5,260 +5,64 @@
 
 ## 1️⃣ Document Metadata
 - **Project Name:** Q_Bank
-- **Date:** 2026-01-28
+- **Date:** 2026-02-01
 - **Prepared by:** TestSprite AI Team
 
 ---
 
 ## 2️⃣ Requirement Validation Summary
 
-#### Test TC001 Universal Content Extraction - Simple Document
-- **Test Code:** [TC001_Universal_Content_Extraction___Simple_Document.py](./TC001_Universal_Content_Extraction___Simple_Document.py)
-- **Test Error:** The system currently does not support importing and extracting text from DOCX documents as the relevant tools are either under development or non-functional. The AI Proofreader tool launch link is broken and does not open the tool interface. Therefore, the task to verify text extraction and formatting preservation from a simple DOCX document cannot be completed at this time.
-Browser Console Logs:
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/0381c0e7-bcdc-4c6c-b1fc-515f1d4c90cc
+#### Test TC001 Switch Language in Bilingual Refinement Studio
+- **Test Code:** [TC001_Switch_Language_in_Bilingual_Refinement_Studio.py](./TC001_Switch_Language_in_Bilingual_Refinement_Studio.py)
+- **Test Error:** Verification summary and result:
+
+What was executed:
+- Opened Refinement Studio and set editor language to English.
+- Entered English test strings:
+  - Question: "ENG_Q_TEST: Which department of the Ministry of Finance prepares the Economic Survey?"
+  - Answer B: "ENG_ANS_B_TEST: B. Department of Economic Affairs"
+  - Metadata: "ENG_META_TEST: Analytical synthesis in English for testing remount behavior."
+- Switched editor language to Hindi and waited for remount.
+- Retrieved the visible editor contents in Hindi mode (JSON):
+  {
+    "question": "On January 31, 2026, the Economic Survey 2025-26 was tabled in the Parliament of India. Which department of the Ministry of Finance is primarily responsible for the preparation of this survey?\n31 जनवरी, 2026 को भारत की संसद में आर्थिक सर्वेक्षण 2025-26 पेश किया गया। वित्त मंत्रालय का कौन सा विभाग मुख्य रूप से इस सर्वेक्षण को तैयार करने के लिए जिम्मेदार है?",
+    "answer_b": "B\nB. Department of Economic Affairs",
+    "metadata": "Feb 1\n0 Uses"
+  }
+
+Expected behavior:
+- After switching to Hindi, the editor should remount and display only Hindi content (or the Hindi-specific stored content). No English text from the English-mode edit should persist in the Hindi view.
+
+Observed behavior and assertion results:
+- Question: FAILED — English test string is still visible (question contains English followed by Hindi). English content persisted.
+- Answer B: FAILED — English answer text is present in Hindi mode.
+- Metadata: PASSED — the English metadata test string is not present; metadata shows date/uses instead.
+
+Conclusion:
+- The language toggle does trigger a remount, but the remount behavior is inconsistent: English content persisted in the Question and Answer B editors but not in Metadata. This does not meet the requirement that switching languages must not persist previous-language content in the other language's editor view.
+
+Recommended next steps (if continuing):
+1) Enter distinct Hindi test strings into Question, Answer B, and Metadata.
+2) Switch back to English and verify the English strings are restored exactly and Hindi strings are not present.
+3) If inconsistent behavior reproduces, inspect RichEditor unmount/mount lifecycle and the language-specific data-loading logic to ensure the editor clears or loads the proper language-specific state on remount.
+
+Test result: FAILED — language-switch remount behavior inconsistent (some fields persisted English content in Hindi mode).
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/203f36cd-9553-44a9-ba4c-1b3434dc17ee/135abbf2-f823-4791-a756-80c2b619d3d1
 - **Status:** ❌ Failed
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
 
-#### Test TC002 Universal Content Extraction - Complex Document with Tables and Equations
-- **Test Code:** [TC002_Universal_Content_Extraction___Complex_Document_with_Tables_and_Equations.py](./TC002_Universal_Content_Extraction___Complex_Document_with_Tables_and_Equations.py)
-- **Test Error:** The page at http://localhost:3000/ is completely empty with no interactive elements or controls visible to import a PDF file containing nested tables, inline equations, and images with styled text. Therefore, I could not proceed with the extraction and preservation task. The issue has been reported.
-Browser Console Logs:
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/App.tsx?t=1769572708202:0:0)
-[ERROR] WebSocket connection to 'ws://localhost:3000/?token=iro7BKeyimMq' failed: Error in connection establishment: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/@vite/client:801:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=690b6614:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=690b6614:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/node_modules/.vite/deps/react.js?v=690b6614:0:0)
-[ERROR] WebSocket connection to 'ws://localhost:3000/?token=iro7BKeyimMq' failed: Error in connection establishment: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/@vite/client:814:0)
-[ERROR] [vite] failed to connect to websocket.
-your current setup:
-  (browser) localhost:3000/ <--[HTTP]--> localhost:3000/ (server)
-  (browser) localhost:3000/ <--[WebSocket (failing)]--> localhost:3000/ (server)
-Check out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr . (at http://localhost:3000/@vite/client:829:24)
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/0212d24c-311f-4482-a83a-2b82c2b6fef6
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC003 Multilingual Support - Hindi-English Bilingual Content
-- **Test Code:** [TC003_Multilingual_Support___Hindi_English_Bilingual_Content.py](./TC003_Multilingual_Support___Hindi_English_Bilingual_Content.py)
-- **Test Error:** The system preserves multilingual content including Hindi and English with correct font rendering and special characters as observed in the existing bilingual content displayed. However, the document import functionality to test importing new mixed Hindi and English documents is not accessible or missing in the Intelligence Lab environment. Task stopped due to this issue.
-Browser Console Logs:
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/node_modules/.vite/deps/chunk-2TUXWMP5.js?v=690b6614:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/components/StudentView.tsx:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/components/Tools/PDFToText.tsx?t=1769571351377:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/components/Tools/QuestionFormatter.tsx?t=1769572708202:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/services/storageService.ts:0:0)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/f2215e12-e63e-4d59-bb3f-6c69d89ac5ca
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC004 AI-Powered Question Detection Accuracy
-- **Test Code:** [TC004_AI_Powered_Question_Detection_Accuracy.py](./TC004_AI_Powered_Question_Detection_Accuracy.py)
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/d40cf1f7-6871-4fa8-9b70-6a0d33f89af4
+#### Test TC008 Content Persistence After Editor Remount
+- **Test Code:** [TC008_Content_Persistence_After_Editor_Remount.py](./TC008_Content_Persistence_After_Editor_Remount.py)
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/203f36cd-9553-44a9-ba4c-1b3434dc17ee/4bad3927-ddcb-46eb-bd72-e6759a97aaa3
 - **Status:** ✅ Passed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC005 Rich Database Schema Storage and Retrieval
-- **Test Code:** [TC005_Rich_Database_Schema_Storage_and_Retrieval.py](./TC005_Rich_Database_Schema_Storage_and_Retrieval.py)
-- **Test Error:** The website does not provide an interface to create or save complex questions in the Creator Studio environment, preventing completion of the test for database storage and retrieval of complex question objects. Task stopped due to this limitation.
-Browser Console Logs:
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/node_modules/.vite/deps/chunk-2TUXWMP5.js?v=690b6614:0:0)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/aba256be-377e-46cb-a562-4724e69eb284
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC006 Bulk Import and Batch Edit with AI Suggestions
-- **Test Code:** [null](./null)
-- **Test Error:** Test execution timed out after 15 minutes
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/737e01c4-f22a-4de2-8563-0a906bfd853c
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC007 Flexible Paper Builder - Manual Mode
-- **Test Code:** [TC007_Flexible_Paper_Builder___Manual_Mode.py](./TC007_Flexible_Paper_Builder___Manual_Mode.py)
-- **Test Error:** Reported the issue with the paper builder inventory synchronization preventing manual paper creation. Task cannot proceed further due to lack of loaded questions and UI elements. Stopping the test.
-Browser Console Logs:
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/components/Tools/PDFToText.tsx?t=1769571351377:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/services/storageService.ts:0:0)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/d3f2fc7d-e14e-400b-8db4-e1eafc0ed785
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC008 Flexible Paper Builder - AI-Assisted Smart Generation
-- **Test Code:** [TC008_Flexible_Paper_Builder___AI_Assisted_Smart_Generation.py](./TC008_Flexible_Paper_Builder___AI_Assisted_Smart_Generation.py)
-- **Test Error:** The AI-assisted question paper generation process failed due to a critical issue where clicking the 'Generate' button in the AI Lab navigates away from the generation interface to the Inventory page, preventing generation and output display. Task cannot proceed further until this issue is resolved.
-Browser Console Logs:
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/components/Tools/AIProofreader.tsx?t=1769572708202:0:0)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[ERROR] Failed to load resource: the server responded with a status of 404 () (at https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent:0:0)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/2430177e-5804-471e-b792-5720cfe30d94
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC009 Flexible Paper Builder - Template-Driven Quick Start
-- **Test Code:** [TC009_Flexible_Paper_Builder___Template_Driven_Quick_Start.py](./TC009_Flexible_Paper_Builder___Template_Driven_Quick_Start.py)
-- **Test Error:** The main page is empty with no visible UI elements to select or switch templates for paper creation. The task cannot proceed further due to lack of interface elements.
-Browser Console Logs:
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/components/Tools/PDFToText.tsx?t=1769571351377:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/components/QuestionGeneration/AutoDetectionFeedback.tsx:0:0)
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/fbd83934-bbfa-4bf0-925e-4217231621d4
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC010 Multi-format Export Fidelity
-- **Test Code:** [TC010_Multi_format_Export_Fidelity.py](./TC010_Multi_format_Export_Fidelity.py)
-- **Test Error:** Stopped task due to inability to open or edit questions for export testing in Creator Studio. The 'Edit Question' button is not accessible, preventing further verification of export fidelity for complex content. Please resolve the UI issue or provide alternative access to test papers with complex tables, images, and equations.
-Browser Console Logs:
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[ERROR] WebSocket connection to 'ws://localhost:3000/?token=iro7BKeyimMq' failed: Error in connection establishment: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/@vite/client:801:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/App.tsx?t=1769572708202:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/node_modules/.vite/deps/react-dom_client.js?v=690b6614:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/node_modules/.vite/deps/react.js?v=690b6614:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=690b6614:0:0)
-[ERROR] WebSocket connection to 'ws://localhost:3000/?token=iro7BKeyimMq' failed: Error in connection establishment: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/@vite/client:814:0)
-[ERROR] [vite] failed to connect to websocket.
-your current setup:
-  (browser) localhost:3000/ <--[HTTP]--> localhost:3000/ (server)
-  (browser) localhost:3000/ <--[WebSocket (failing)]--> localhost:3000/ (server)
-Check out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr . (at http://localhost:3000/@vite/client:829:24)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/2fddf820-648c-4c94-a52b-dc7d125ca5e7
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC011 Visual Rich Content Editor - Table and Equation Editing
-- **Test Code:** [TC011_Visual_Rich_Content_Editor___Table_and_Equation_Editing.py](./TC011_Visual_Rich_Content_Editor___Table_and_Equation_Editing.py)
-- **Test Error:** The website is not allowing access to the visual editor or question creation interface. The page remains stuck on 'Synchronizing Asset Data...' loading state. Therefore, testing of creation and modification of tables and equations cannot proceed. Please investigate and fix this issue.
-Browser Console Logs:
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/node_modules/.vite/deps/html2canvas.js?v=690b6614:0:0)
-[ERROR] Failed to load resource: net::ERR_EMPTY_RESPONSE (at http://localhost:3000/components/Tools/AIProofreader.tsx?t=1769572708202:0:0)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[ERROR] Error fetching sets: {message: TypeError: Failed to fetch, details: TypeError: Failed to fetch
-    at http://localhost…ents/CreatorDashboard.tsx?t=1769572708202:677:18), hint: , code: } (at http://localhost:3000/services/storageService.ts:164:14)
-[ERROR] Error fetching sets: {message: TypeError: Failed to fetch, details: TypeError: Failed to fetch
-    at http://localhost…ents/CreatorDashboard.tsx?t=1769572708202:677:18), hint: , code: } (at http://localhost:3000/services/storageService.ts:164:14)
-[ERROR] Error fetching legacy questions: {message: TypeError: Failed to fetch, details: TypeError: Failed to fetch
-    at http://localhost…ents/CreatorDashboard.tsx?t=1769572708202:672:18), hint: , code: } (at http://localhost:3000/services/storageService.ts:12:33)
-[ERROR] Error fetching master questions: {message: TypeError: Failed to fetch, details: TypeError: Failed to fetch
-    at http://localhost…ents/CreatorDashboard.tsx?t=1769572708202:672:18), hint: , code: } (at http://localhost:3000/services/storageService.ts:13:33)
-[ERROR] Error fetching legacy questions: {message: TypeError: Failed to fetch, details: TypeError: Failed to fetch
-    at http://localhost…ents/CreatorDashboard.tsx?t=1769572708202:672:18), hint: , code: } (at http://localhost:3000/services/storageService.ts:12:33)
-[ERROR] Error fetching master questions: {message: TypeError: Failed to fetch, details: TypeError: Failed to fetch
-    at http://localhost…ents/CreatorDashboard.tsx?t=1769572708202:672:18), hint: , code: } (at http://localhost:3000/services/storageService.ts:13:33)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-[WARNING] cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation (at https://cdn.tailwindcss.com/?plugins=typography:65:26200)
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/13a1916f-7973-4495-9fae-906f96429520
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC012 Advanced Search and Filtering Interface
-- **Test Code:** [null](./null)
-- **Test Error:** Test execution timed out after 15 minutes
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/8ed76074-8ca3-4f25-a39d-dddcc82031ea
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC013 Session Management and Presentation Tools
-- **Test Code:** [TC013_Session_Management_and_Presentation_Tools.py](./TC013_Session_Management_and_Presentation_Tools.py)
-- **Test Error:** Failed to go to the start URL. Err: Error executing action go_to_url: Page.goto: net::ERR_EMPTY_RESPONSE at http://localhost:3000/
-Call log:
-  - navigating to "http://localhost:3000/", waiting until "load"
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/f75ee873-fdf1-4596-ae11-4c10da7d9a78
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC014 Interface Stability on Workflow Transitions
-- **Test Code:** [TC014_Interface_Stability_on_Workflow_Transitions.py](./TC014_Interface_Stability_on_Workflow_Transitions.py)
-- **Test Error:** Failed to go to the start URL. Err: Error executing action go_to_url: Page.goto: net::ERR_EMPTY_RESPONSE at http://localhost:3000/
-Call log:
-  - navigating to "http://localhost:3000/", waiting until "load"
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/a0b075d1-20e2-4709-86cc-9c5683431d46
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC015 Security - Access Control and Data Encryption
-- **Test Code:** [TC015_Security___Access_Control_and_Data_Encryption.py](./TC015_Security___Access_Control_and_Data_Encryption.py)
-- **Test Error:** Failed to go to the start URL. Err: Error executing action go_to_url: Page.goto: net::ERR_EMPTY_RESPONSE at http://localhost:3000/
-Call log:
-  - navigating to "http://localhost:3000/", waiting until "load"
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/07c31f10-ab69-4f67-8476-8864ee3992bd
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC016 Accessibility Compliance WCAG 2.1 AA
-- **Test Code:** [TC016_Accessibility_Compliance_WCAG_2.1_AA.py](./TC016_Accessibility_Compliance_WCAG_2.1_AA.py)
-- **Test Error:** Failed to go to the start URL. Err: Error executing action go_to_url: Page.goto: net::ERR_EMPTY_RESPONSE at http://localhost:3000/
-Call log:
-  - navigating to "http://localhost:3000/", waiting until "load"
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/2c95e9aa-7eab-4408-8da8-f4707b7ffbbb/9986521a-a51b-4242-971f-414fd7c008d8
-- **Status:** ❌ Failed
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
 
 
 ## 3️⃣ Coverage & Matching Metrics
 
-- **6.25** of tests passed
+- **50.00** of tests passed
 
 | Requirement        | Total Tests | ✅ Passed | ❌ Failed  |
 |--------------------|-------------|-----------|------------|

@@ -112,7 +112,7 @@ export const PDFStudio: React.FC<PDFStudioProps> = ({ initialSetId, onExit }) =>
             const dateObj = new Date(q.date);
             const dateStr = `${dateObj.getDate()} ${dateObj.toLocaleString('en', { month: 'short' })}, ${dateObj.getFullYear()}`;
             return (
-                <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-200 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-wider leading-none print-exact">
+                <span className="inline-flex items-center gap-1.5 text-red-700 text-[9px] font-black uppercase tracking-wider leading-none print-exact">
                     <Calendar size={11} className="stroke-[2.5]" />
                     <span className="mt-[1px]">{dateStr}</span>
                 </span>

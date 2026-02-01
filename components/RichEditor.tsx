@@ -2,31 +2,54 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   Bold, Italic, Underline, Strikethrough, List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  Link2, Unlink, Image as ImageIcon, Code, Quote,
+  Link2, Image as ImageIcon, Code, Quote,
   Subscript, Superscript, Table, Type, Palette,
-  Undo, Redo, Eraser, Eye, ChevronDown, Maximize2, Minimize2
+  RotateCcw, RotateCw, Eraser, Maximize2, Minimize2,
+  ChevronDown, Sigma, GripHorizontal
 } from 'lucide-react';
 
 export interface RichEditorProps {
-  label: string;
+  label?: string;
   value: string;
   onChange: (val: string) => void;
   minHeight?: string;
   accessory?: React.ReactNode;
   className?: string;
+  placeholder?: string;
 }
 
-export const RichEditor: React.FC<RichEditorProps> = React.memo(({ label, value, onChange, minHeight = "120px", accessory, className = "" }) => {
+const MATH_SYMBOLS = ['Ω', 'π', '∆', '∑', '∞', '≈', '≠', '≤', '≥', '±', '×', '÷', '√', '°', 'α', 'β', 'θ', 'λ', 'μ'];
+const FONT_SIZES = ['10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px'];
+const COLORS = ['#000000', '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#34495e', '#7f8c8d'];
+
+export const RichEditor: React.FC<RichEditorProps> = React.memo(({
+  label, value, onChange, minHeight = "200px", accessory, className = "", placeholder = "Type something..."
+}) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const expandedEditorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const historySaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [showColorPicker, setShowColorPicker] = useState<'text' | 'bg' | null>(null);
-  const [showFontSize, setShowFontSize] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [expandedContent, setExpandedContent] = useState('');
-  const [localContent, setLocalContent] = useState(value);
+
+  // Code View State
+  const [isCodeView, setIsCodeView] = useState(false);
+  const [htmlCode, setHtmlCode] = useState('');
+
+  // Undo/Redo History State
+  const [history, setHistory] = useState<string[]>([value || '']);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const maxHistorySize = 50;
+  const isUndoDisabled = historyIndex <= 0;
+  const isRedoDisabled = historyIndex >= history.length - 1;
+
+  // Toolbar State
+  const [showColorPicker, setShowColorPicker] = useState<'text' | 'bg' | null>(null);
+  const [showSizePicker, setShowSizePicker] = useState(false);
+  const [showMathPicker, setShowMathPicker] = useState(false);
+  const [wordCount, setWordCount] = useState(0);
 
   const [activeStyles, setActiveStyles] = useState({
     bold: false,
@@ -35,114 +58,119 @@ export const RichEditor: React.FC<RichEditorProps> = React.memo(({ label, value,
     strikethrough: false,
     ul: false,
     ol: false,
-    subscript: false,
-    superscript: false
+    sub: false,
+    sup: false,
+    blockquote: false,
+    code: false,
+    alignLeft: false,
+    alignCenter: false,
+    alignRight: false,
+    alignJustify: false
   });
 
-
-  // Debounced onChange to reduce parent re-renders
+  // Debounced Change Handler
   const debouncedOnChange = useCallback((content: string) => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(() => {
       onChange(content);
     }, 150);
   }, [onChange]);
 
-  const exec = useCallback((cmd: string, val: string = '', forExpanded: boolean = false) => {
+  // Save to history
+  const saveHistory = useCallback((content: string) => {
+    setHistory(prev => {
+      // If we're not at the end of history, remove everything after current index
+      const newHistory = prev.slice(0, historyIndex + 1);
+      // Add new content
+      newHistory.push(content);
+      // Limit history size
+      if (newHistory.length > maxHistorySize) {
+        newHistory.shift();
+        setHistoryIndex(maxHistorySize - 1);
+        return newHistory;
+      }
+      setHistoryIndex(newHistory.length - 1);
+      return newHistory;
+    });
+  }, [historyIndex, maxHistorySize]);
+
+  // Handle Undo
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      const content = history[newIndex];
+      setHistoryIndex(newIndex);
+
+      const activeEditor = expanded ? expandedEditorRef.current : editorRef.current;
+      if (activeEditor) {
+        activeEditor.innerHTML = content;
+        onChange(content);
+      }
+    }
+  }, [historyIndex, history, expanded, onChange]);
+
+  // Handle Redo
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      const content = history[newIndex];
+      setHistoryIndex(newIndex);
+
+      const activeEditor = expanded ? expandedEditorRef.current : editorRef.current;
+      if (activeEditor) {
+        activeEditor.innerHTML = content;
+        onChange(content);
+      }
+    }
+  }, [historyIndex, history, expanded, onChange]);
+
+  // Core formatting executor
+  const exec = useCallback((cmd: string, val: string = '', forExpanded = false) => {
     document.execCommand(cmd, false, val);
-    const targetRef = forExpanded ? expandedEditorRef : editorRef;
-    targetRef.current?.focus();
+    const target = forExpanded ? expandedEditorRef.current : editorRef.current;
+    target?.focus();
     checkStyles();
   }, []);
 
-
-  const handleLink = useCallback(() => {
-    const url = prompt('Enter URL:');
-    if (url) exec('createLink', url);
+  const insertHTML = useCallback((html: string) => {
+    exec('insertHTML', html);
   }, [exec]);
 
-  const handleImageUpload = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
+  const handleLink = () => {
+    const url = prompt('Enter URL:');
+    if (url) exec('createLink', url);
+  };
+
+  const handleImageUpload = () => fileInputRef.current?.click();
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          exec('insertImage', event.target.result as string);
-        }
+      reader.onload = (ev) => {
+        if (ev.target?.result) exec('insertImage', ev.target.result as string);
       };
       reader.readAsDataURL(file);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
-  const handleColorChange = useCallback((color: string, type: 'text' | 'bg') => {
-    if (type === 'text') {
-      exec('foreColor', color);
-    } else {
-      exec('backColor', color);
-    }
-    setShowColorPicker(null);
-  }, [exec]);
 
-  const insertTable = useCallback(() => {
-    const rows = prompt('Number of rows:', '3');
-    const cols = prompt('Number of columns:', '3');
+  const insertTable = () => {
+    const rows = prompt('Rows:', '3');
+    const cols = prompt('Columns:', '3');
     if (rows && cols) {
-      let tableHTML = '<table border="1" style="border-collapse: collapse; width: 100%;"><tbody>';
+      let html = '<table style="border-collapse: collapse; width: 100%; margin: 10px 0;"><tbody>';
       for (let i = 0; i < parseInt(rows); i++) {
-        tableHTML += '<tr>';
+        html += '<tr>';
         for (let j = 0; j < parseInt(cols); j++) {
-          tableHTML += '<td style="padding: 8px; border: 1px solid #ddd;"> </td>';
+          html += '<td style="border: 1px solid #cbd5e1; padding: 8px;">&nbsp;</td>';
         }
-        tableHTML += '</tr>';
+        html += '</tr>';
       }
-      tableHTML += '</tbody></table>';
-      exec('insertHTML', tableHTML);
+      html += '</tbody></table>';
+      insertHTML(html);
     }
-  }, [exec]);
-
-  // Toggle code block - switch between <pre> and normal text
-  const toggleCodeBlock = useCallback(() => {
-    const selection = window.getSelection();
-    if (!selection || !selection.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
-    const parentElement = selection.anchorNode?.parentElement;
-    const preElement = parentElement?.closest('pre');
-
-    if (preElement) {
-      // We're in a code block - convert HTML code to rendered HTML
-      const htmlCode = preElement.textContent || '';
-
-      // Create a temporary div to parse the HTML
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = htmlCode;
-
-      // Replace the pre element with the parsed content
-      preElement.replaceWith(tempDiv);
-
-      // Restore selection at the end
-      const newRange = document.createRange();
-      newRange.selectNodeContents(tempDiv);
-      newRange.collapse(false);
-      selection.removeAllRanges();
-      selection.addRange(newRange);
-
-      // Trigger change
-      if (editorRef.current) {
-        onChange(editorRef.current.innerHTML);
-      }
-    } else {
-      // Not in code block - apply code formatting
-      exec('formatBlock', '<pre>');
-    }
-  }, [exec, onChange]);
-
-  // Source code toggle removed for better UX
+  };
 
   const checkStyles = useCallback(() => {
     setActiveStyles({
@@ -152,238 +180,420 @@ export const RichEditor: React.FC<RichEditorProps> = React.memo(({ label, value,
       strikethrough: document.queryCommandState('strikethrough'),
       ul: document.queryCommandState('insertUnorderedList'),
       ol: document.queryCommandState('insertOrderedList'),
-      subscript: document.queryCommandState('subscript'),
-      superscript: document.queryCommandState('superscript')
+      sub: document.queryCommandState('subscript'),
+      sup: document.queryCommandState('superscript'),
+      alignLeft: document.queryCommandState('justifyLeft'),
+      alignCenter: document.queryCommandState('justifyCenter'),
+      alignRight: document.queryCommandState('justifyRight'),
+      alignJustify: document.queryCommandState('justifyFull'),
+      blockquote: document.queryCommandValue('formatBlock') === 'blockquote',
+      code: false // difficult to track accurately with execCommand
     });
+
+    // Update word count
+    const text = (editorRef.current?.innerText || '') + (expandedEditorRef.current?.innerText || '');
+    setWordCount(text.trim().split(/\s+/).filter(w => w.length > 0).length);
   }, []);
 
-  // Sync value from parent
+  // Sync Content
   useEffect(() => {
-    setLocalContent(value);
-  }, [value]);
-
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value && !isExpanded) {
+    if (editorRef.current && editorRef.current.innerHTML !== value && !expanded) {
       editorRef.current.innerHTML = value || '';
+      checkStyles();
     }
-  }, [value, isExpanded]);
+  }, [value, expanded, checkStyles]);
 
+  // Sync Expanded Content on Open
   useEffect(() => {
-    if (expandedEditorRef.current && isExpanded) {
-      expandedEditorRef.current.innerHTML = expandedContent || '';
+    if (expanded && expandedEditorRef.current) {
+      // Must wait for ref to be available in next tick or effect
+      expandedEditorRef.current.innerHTML = expandedContent || value || '';
     }
-  }, [isExpanded, expandedContent]);
+  }, [expanded, expandedContent, value]);
 
-  const handleExpand = () => {
-    // Capture current content before expanding
-    const currentContent = editorRef.current?.innerHTML || value;
-    setExpandedContent(currentContent);
-    setIsExpanded(true);
+  // Handle Fullscreen
+  const toggleFullscreen = () => {
+    if (!expanded) {
+      const current = editorRef.current?.innerHTML || value;
+      setExpandedContent(current);
+      setExpanded(true);
+    } else {
+      const content = expandedEditorRef.current?.innerHTML || '';
+      onChange(content);
+      setExpanded(false);
+    }
   };
 
-  const handleCollapse = () => {
-    // Save expanded content back to normal view
-    const currentExpandedContent = expandedEditorRef.current?.innerHTML || '';
-    onChange(currentExpandedContent);
-    setIsExpanded(false);
-  };
+  // Improved Code Block Toggle
+  const toggleCodeBlock = useCallback(() => {
+    const activeEditor = expanded ? expandedEditorRef.current : editorRef.current;
+    if (!activeEditor) return;
 
-  // ESC key to close fullscreen
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isExpanded) {
-        handleCollapse();
-      }
-    };
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return;
 
-    if (isExpanded) {
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
+    // Check if we are inside a PRE tag
+    let node = selection.anchorNode;
+    // Normalize text nodes to parent
+    if (node?.nodeType === 3) node = node.parentElement;
+
+    const preNode = (node as HTMLElement)?.closest('pre');
+
+    if (preNode) {
+      // Unwrap logic
+      exec('formatBlock', 'DIV');
+      // execCommand formatBlock DIV often works to break out of PRE in some browsers, 
+      // but robust unwrap might need manual DOM manipulation if exec fails. 
+      // For now, attempting the standard exec approach.
+    } else {
+      exec('formatBlock', 'PRE');
     }
-  }, [isExpanded, handleCollapse]);
+    checkStyles();
+  }, [expanded, exec, checkStyles]);
 
-  // Cleanup debounce timer
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
+  // Format HTML with proper indentation
+  const formatHTML = useCallback((html: string): string => {
+    let formatted = html
+      .replace(/></g, '>\n<')
+      .replace(/\n\s*\n/g, '\n');
+
+    const lines = formatted.split('\n');
+    let indentLevel = 0;
+
+    return lines.map(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return '';
+
+      // Decrease indent for closing tags
+      if (trimmed.startsWith('</')) {
+        indentLevel = Math.max(0, indentLevel - 1);
       }
-    };
+
+      const indented = '  '.repeat(indentLevel) + trimmed;
+
+      // Increase indent for opening tags (but not self-closing)
+      if (trimmed.startsWith('<') &&
+        !trimmed.startsWith('</') &&
+        !trimmed.endsWith('/>') &&
+        !trimmed.includes('</')) {
+        indentLevel++;
+      }
+
+      return indented;
+    }).join('\n');
   }, []);
 
-  const colorPresets = useMemo(() => ['#000000', '#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#34495e'], []);
-  const fontSizes = useMemo(() => ['10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px'], []);
+  // Toggle Code View (HTML source view)
+  const toggleCodeView = useCallback(() => {
+    if (!isCodeView) {
+      // Entering code view - save current HTML
+      const activeEditor = expanded ? expandedEditorRef.current : editorRef.current;
+      if (!activeEditor) {
+        console.warn('Editor ref not available');
+        return;
+      }
+      const currentHTML = activeEditor.innerHTML;
+      setHtmlCode(formatHTML(currentHTML));
+      setIsCodeView(true);
+    } else {
+      // Exiting code view - toggle state first, then update content via useEffect
+      setIsCodeView(false);
+      // Content will be synced after re-render when the contentEditable div is available
+    }
+  }, [isCodeView, expanded, formatHTML]);
 
-  return (
-    <>
-      {isExpanded && (
-        <div className="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl h-[92vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
-              <h3 className="text-base font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
-                <Maximize2 size={18} className="text-primary" />
-                {label}
-              </h3>
-              <button
-                onClick={handleCollapse}
-                className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center gap-2 text-sm font-semibold"
-                title="Exit Fullscreen (ESC)"
-              >
-                <Minimize2 size={16} />
-                Close
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden p-6">
-              <div className="h-full">
-                {renderEditor(true)}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+  // Sync HTML code back to editor when exiting code view
+  useEffect(() => {
+    if (!isCodeView && htmlCode) {
+      const activeEditor = expanded ? expandedEditorRef.current : editorRef.current;
+      if (activeEditor && activeEditor.innerHTML !== htmlCode) {
+        try {
+          activeEditor.innerHTML = htmlCode;
+          if (!expanded) {
+            onChange(htmlCode);
+          } else {
+            setExpandedContent(htmlCode);
+          }
+          checkStyles();
+        } catch (error) {
+          console.error('Failed to apply HTML:', error);
+        }
+      }
+    }
+  }, [isCodeView, htmlCode, expanded, onChange, checkStyles]);
 
-      <div className={`space-y-0.5 group/editor ${className}`}>
-        {label && (
-          <label className="text-[8px] font-bold text-slate-400 uppercase tracking-wider px-1 block">{label}</label>
-        )}
+  // Keyboard Shortcurts
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && expanded) toggleFullscreen();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [expanded]);
 
-        {renderEditor(false)}
-      </div>
-    </>
+  // Render Toolbar Button Helper
+  const ToolbarBtn = ({
+    icon: Icon,
+    active = false,
+    onClick,
+    title,
+    disabled = false
+  }: { icon: any, active?: boolean, onClick: (e: any) => void, title: string, disabled?: boolean }) => (
+    <button
+      onMouseDown={(e) => { e.preventDefault(); if (!disabled) onClick(e); }}
+      className={`p-1.5 rounded-md transition-all flex items-center justify-center ${active
+        ? 'bg-indigo-100 text-indigo-700 shadow-sm'
+        : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      title={title}
+      disabled={disabled}
+      type="button"
+    >
+      <Icon size={16} strokeWidth={2.5} />
+    </button>
   );
 
-  function renderEditor(isFullscreen: boolean) {
-    return (
-      <div className={`bg-white rounded-xl border border-slate-200 shadow-sm focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/5 transition-all overflow-hidden relative ${isFullscreen ? 'h-full flex flex-col' : ''} `}>
-        {
-          <div className="px-1.5 py-1 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center gap-0.5 relative z-10">
-            {/* Text Styling */}
-            <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded p-0.5">
-              <button onMouseDown={(e) => { e.preventDefault(); exec('bold'); }} className={`p-0.5 rounded transition-all ${activeStyles.bold ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}`} title="Bold"><Bold size={14} /></button>
-              <button onMouseDown={(e) => { e.preventDefault(); exec('italic'); }} className={`p-0.5 rounded transition-all ${activeStyles.italic ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}`} title="Italic"><Italic size={14} /></button>
-              <button onMouseDown={(e) => { e.preventDefault(); exec('underline'); }} className={`p-0.5 rounded transition-all ${activeStyles.underline ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}`} title="Underline"><Underline size={14} /></button>
-              <button onMouseDown={(e) => { e.preventDefault(); exec('strikethrough'); }} className={`p-0.5 rounded transition-all ${activeStyles.strikethrough ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}`} title="Strike"><Strikethrough size={14} /></button>
-            </div>
+  const renderToolbar = (isFull: boolean) => (
+    <div className="flex flex-wrap items-center gap-1 p-2 bg-slate-50/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-20 select-none">
 
-            {/* Font Size */}
-            <div className="relative">
+      {!isCodeView && (
+        <>
+          {/* Group 1: History */}
+          <div className="flex items-center gap-0.5 pr-2 border-r border-slate-300/50">
+            <ToolbarBtn icon={RotateCcw} onClick={handleUndo} title="Undo (Ctrl+Z)" disabled={isUndoDisabled} />
+            <ToolbarBtn icon={RotateCw} onClick={handleRedo} title="Redo (Ctrl+Y)" disabled={isRedoDisabled} />
+          </div>
+
+          {/* Group 2: Text Style */}
+          <div className="flex items-center gap-0.5 px-2 border-r border-slate-300/50">
+            <div className="relative group">
               <button
-                onMouseDown={(e) => { e.preventDefault(); setShowFontSize(!showFontSize); }}
-                className="p-0.5 rounded bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
-                title="Font Size"
+                className="flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-200 text-xs font-semibold text-slate-700"
+                onMouseDown={(e) => { e.preventDefault(); setShowSizePicker(!showSizePicker); }}
               >
                 <Type size={14} />
+                <ChevronDown size={10} />
               </button>
-              {showFontSize && (
-                <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-1 z-50 min-w-[80px]">
-                  {fontSizes.map(size => (
+
+              {showSizePicker && (
+                <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 shadow-xl rounded-lg py-1 z-50 min-w-[80px] animate-in fade-in zoom-in-95">
+                  {FONT_SIZES.map(s => (
                     <button
-                      key={size}
-                      onMouseDown={(e) => { e.preventDefault(); exec('fontSize', '7'); exec('foreColor', 'inherit'); const sel = window.getSelection(); if (sel?.rangeCount) { const range = sel.getRangeAt(0); const span = document.createElement('span'); span.style.fontSize = size; range.surroundContents(span); } setShowFontSize(false); }}
-                      className="w-full text-left px-2 py-1 text-[11px] hover:bg-slate-100 rounded"
+                      key={s}
+                      className="w-full text-left px-3 py-1.5 hover:bg-indigo-50 text-xs font-medium text-slate-700"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        exec('fontSize', '7', isFull);
+                        const sel = window.getSelection();
+                        if (sel && sel.rangeCount) {
+                          try {
+                            const span = document.createElement('span');
+                            span.style.fontSize = s;
+                            const range = sel.getRangeAt(0);
+                            range.surroundContents(span);
+                          } catch (err) {
+                            console.error('Selection err', err);
+                          }
+                        }
+                        setShowSizePicker(false);
+                      }}
                     >
-                      {size}
+                      {s}
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Colors */}
+            <ToolbarBtn icon={Bold} active={activeStyles.bold} onClick={() => exec('bold', '', isFull)} title="Bold (Ctrl+B)" />
+            <ToolbarBtn icon={Italic} active={activeStyles.italic} onClick={() => exec('italic', '', isFull)} title="Italic (Ctrl+I)" />
+            <ToolbarBtn icon={Underline} active={activeStyles.underline} onClick={() => exec('underline', '', isFull)} title="Underline (Ctrl+U)" />
+            <ToolbarBtn icon={Strikethrough} active={activeStyles.strikethrough} onClick={() => exec('strikethrough', '', isFull)} title="Strikethrough" />
+
             <div className="relative">
-              <button
-                onMouseDown={(e) => { e.preventDefault(); setShowColorPicker(showColorPicker === 'text' ? null : 'text'); }}
-                className="p-0.5 rounded bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
-                title="Color"
-              >
-                <Palette size={14} />
-              </button>
-              {showColorPicker === 'text' && (
-                <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-2 z-50">
-                  <div className="grid grid-cols-4 gap-1">
-                    {colorPresets.map(color => (
-                      <button
-                        key={color}
-                        onMouseDown={(e) => { e.preventDefault(); handleColorChange(color, 'text'); }}
-                        className="w-6 h-6 rounded border border-slate-200 hover:scale-110 transition-transform"
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
+              <ToolbarBtn
+                icon={Palette}
+                onClick={() => setShowColorPicker(showColorPicker ? null : 'text')}
+                title="Text Color"
+                active={!!showColorPicker}
+              />
+              {showColorPicker && (
+                <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 shadow-xl rounded-lg p-2 z-50 grid grid-cols-5 gap-1 min-w-[140px]">
+                  {COLORS.map(c => (
+                    <button
+                      key={c}
+                      className={`w-5 h-5 rounded-full border border-slate-100 hover:scale-110 transition-transform`}
+                      style={{ backgroundColor: c }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        exec(showColorPicker === 'text' ? 'foreColor' : 'backColor', c, isFull);
+                        setShowColorPicker(null);
+                      }}
+                    />
+                  ))}
+                  <button
+                    className="w-full text-[10px] col-span-5 font-bold text-slate-400 hover:text-slate-600 mt-1 uppercase tracking-wide text-center"
+                    onMouseDown={() => { setShowColorPicker(showColorPicker === 'text' ? 'bg' : 'text'); }}
+                  >
+                    Switch to {showColorPicker === 'text' ? 'Highlight' : 'Text'}
+                  </button>
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Alignment */}
-            <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded p-0.5">
-              <button onMouseDown={(e) => { e.preventDefault(); exec('justifyLeft'); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all" title="Left"><AlignLeft size={14} /></button>
-              <button onMouseDown={(e) => { e.preventDefault(); exec('justifyCenter'); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all" title="Center"><AlignCenter size={14} /></button>
-              <button onMouseDown={(e) => { e.preventDefault(); exec('justifyRight'); }} className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all" title="Align Right"><AlignRight size={12} /></button>
-              <button onMouseDown={(e) => { e.preventDefault(); exec('justifyFull'); }} className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all" title="Justify"><AlignJustify size={12} /></button>
-            </div>
+          {/* Group 3: Paragraph */}
+          <div className="flex items-center gap-0.5 px-2 border-r border-slate-300/50">
+            <ToolbarBtn icon={AlignLeft} active={activeStyles.alignLeft} onClick={() => exec('justifyLeft', '', isFull)} title="Align Left" />
+            <ToolbarBtn icon={AlignCenter} active={activeStyles.alignCenter} onClick={() => exec('justifyCenter', '', isFull)} title="Align Center" />
+            <ToolbarBtn icon={List} active={activeStyles.ul} onClick={() => exec('insertUnorderedList', '', isFull)} title="Bullet List" />
+            <ToolbarBtn icon={ListOrdered} active={activeStyles.ol} onClick={() => exec('insertOrderedList', '', isFull)} title="Numbered List" />
+          </div>
 
-            <div className="w-px h-4 bg-slate-200 mx-0.5" />
-
-            {/* Lists */}
-            <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
-              <button onMouseDown={(e) => { e.preventDefault(); exec('insertUnorderedList'); }} className={`p - 1 rounded transition - all ${activeStyles.ul ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'} `} title="Bullet List"><List size={12} /></button>
-              <button onMouseDown={(e) => { e.preventDefault(); exec('insertOrderedList'); }} className={`p - 1 rounded transition - all ${activeStyles.ol ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'} `} title="Numbered List"><ListOrdered size={12} /></button>
-            </div>
-
-            <div className="w-px h-4 bg-slate-200 mx-0.5" />
-
-            {/* Script */}
-            <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
-              <button onMouseDown={(e) => { e.preventDefault(); exec('subscript'); }} className={`p - 1 rounded transition - all ${activeStyles.subscript ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'} `} title="Subscript"><Subscript size={12} /></button>
-              <button onMouseDown={(e) => { e.preventDefault(); exec('superscript'); }} className={`p - 1 rounded transition - all ${activeStyles.superscript ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'} `} title="Superscript"><Superscript size={12} /></button>
-            </div>
-
-            <div className="w-px h-4 bg-slate-200 mx-0.5" />
-
-            {/* Advanced */}
-            <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded p-0.5">
-              <button onMouseDown={(e) => { e.preventDefault(); handleLink(); }} className="p-0.5 rounded text-slate-400 hover:text-primary hover:bg-primary/10 transition-all" title="Link"><Link2 size={14} /></button>
-              <button onMouseDown={(e) => { e.preventDefault(); handleImageUpload(); }} className="p-0.5 rounded text-slate-400 hover:text-primary hover:bg-primary/10 transition-all" title="Image"><ImageIcon size={14} /></button>
-              <button onMouseDown={(e) => { e.preventDefault(); insertTable(); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all" title="Table"><Table size={14} /></button>
-            </div>
-
-            {/* Blocks */}
-            <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded p-0.5">
-              <button onMouseDown={(e) => { e.preventDefault(); exec('formatBlock', '<blockquote>'); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all" title="Quote"><Quote size={14} /></button>
-              <button onMouseDown={(e) => { e.preventDefault(); toggleCodeBlock(); }} className="p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all" title="Code Block (Toggle)"><Code size={14} /></button>
-            </div>
-
-            <div className="ml-auto flex items-center gap-0.5">
-              {!isFullscreen && (
-                <button onClick={handleExpand} className="p-0.5 rounded text-slate-400 hover:text-primary hover:bg-primary/10 transition-all" title="Expand"><Maximize2 size={14} /></button>
+          {/* Group 4: Insert */}
+          <div className="flex items-center gap-0.5 px-2 border-r border-slate-300/50">
+            <ToolbarBtn icon={Link2} onClick={handleLink} title="Insert Link" />
+            <ToolbarBtn icon={ImageIcon} onClick={handleImageUpload} title="Insert Image" />
+            <ToolbarBtn icon={Table} onClick={insertTable} title="Insert Table" />
+            <ToolbarBtn icon={Code} onClick={toggleCodeBlock} title="Code Block" />
+            <div className="relative">
+              <ToolbarBtn icon={Sigma} onClick={() => setShowMathPicker(!showMathPicker)} title="Insert Math Symbol" active={showMathPicker} />
+              {showMathPicker && (
+                <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 shadow-xl rounded-lg p-2 z-50 grid grid-cols-5 gap-1 min-w-[160px]">
+                  {MATH_SYMBOLS.map(sym => (
+                    <button
+                      key={sym}
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-indigo-50 text-slate-700 font-serif"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        insertHTML(sym);
+                        setShowMathPicker(false);
+                      }}
+                    >
+                      {sym}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
-        }
+        </>
+      )}
 
-        <div className={`relative ${isFullscreen ? 'flex-1 overflow-hidden' : ''}`}>
-          {
-            <div
-              ref={isFullscreen ? expandedEditorRef : editorRef}
-              contentEditable
-              className={`w-full px-3 py-2 outline-none overflow-y-auto prose prose-slate prose-sm max-w-none prose-p:my-1 prose-headings:my-2 font-medium text-slate-600 focus:text-slate-800 leading-snug [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-slate-200 [&_img]:my-2 [&_table]:border-collapse [&_table]:w-full [&_td]:border [&_td]:border-slate-200 [&_td]:p-2 [&_th]:border [&_th]:border-slate-200 [&_th]:p-2 [&_th]:bg-slate-50 [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-slate-600 [&_pre]:bg-slate-800 [&_pre]:text-slate-100 [&_pre]:p-3 [&_pre]:rounded [&_pre]:overflow-x-auto [&_pre]:font-mono [&_code]:bg-slate-800 [&_code]:text-slate-100 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[13px] [&_code]:font-mono ${isFullscreen ? 'h-full min-h-full' : 'min-h-[80px] max-h-[600px]'}`}
-              style={isFullscreen ? {} : { minHeight }}
-              onInput={(e) => isFullscreen ? setExpandedContent(e.currentTarget.innerHTML) : onChange(e.currentTarget.innerHTML)}
-              onBlur={() => checkStyles()}
-              onKeyUp={() => checkStyles()}
-              onMouseUp={() => checkStyles()}
-            />
-          }
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept="image/*"
-            className="hidden"
-          />
+      {/* Group 5: View & Misc */}
+      <div className="flex items-center gap-0.5 px-2 ml-auto">
+        {!isCodeView && (
+          <>
+            <ToolbarBtn icon={Eraser} onClick={() => exec('removeFormat', '', isFull)} title="Clear Formatting" />
+            <div className="w-px h-4 bg-slate-300/50 mx-1" />
+          </>
+        )}
+        <button
+          onMouseDown={(e) => { e.preventDefault(); toggleCodeView(); }}
+          className={`px-2 py-1.5 rounded-md transition-all text-xs font-bold ${isCodeView
+            ? 'bg-amber-100 text-amber-700 shadow-sm'
+            : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+            }`}
+          title={isCodeView ? "Visual Editor" : "Code View"}
+          type="button"
+        >
+          {'</>'}
+        </button>
+        <div className="w-px h-4 bg-slate-300/50 mx-1" />
+        <ToolbarBtn
+          icon={isFull ? Minimize2 : Maximize2}
+          onClick={toggleFullscreen}
+          title={isFull ? "Exit Fullscreen" : "Enter Fullscreen"}
+        />
+      </div>
+    </div>
+  );
+
+  const renderContentArea = (ref: React.RefObject<HTMLDivElement>, isFull: boolean) => (
+    <div className="relative flex-1 flex flex-col">
+      {isCodeView ? (
+        // Code View
+        <textarea
+          value={htmlCode}
+          onChange={(e) => setHtmlCode(e.target.value)}
+          className={`
+            flex-1 w-full outline-none px-6 py-4
+            font-mono text-sm leading-relaxed
+            bg-slate-900 text-slate-100
+            resize-none
+          `}
+          style={isFull ? {} : { minHeight }}
+          spellCheck={false}
+          placeholder="<p>Enter HTML code...</p>"
+        />
+      ) : (
+        // Visual Editor
+        <div
+          ref={ref}
+          contentEditable
+          className={`
+            flex-1 w-full outline-none prose prose-sm max-w-none 
+            prose-headings:font-bold prose-headings:text-slate-800 
+            prose-p:text-slate-600 prose-p:leading-relaxed
+            prose-a:text-indigo-600 prose-a:no-underline hover:prose-a:underline
+            prose-img:rounded-xl prose-img:shadow-md prose-img:border prose-img:border-slate-100
+            px-6 py-4
+            ${isFull ? 'bg-white' : 'bg-white rounded-b-xl'}
+          `}
+          style={isFull ? {} : { minHeight }}
+          onInput={(e) => {
+            const html = e.currentTarget.innerHTML;
+            if (isFull) setExpandedContent(html);
+            else {
+              onChange(html);
+              checkStyles();
+            }
+
+            // Save to history after user stops typing for 500ms
+            if (historySaveTimerRef.current) clearTimeout(historySaveTimerRef.current);
+            historySaveTimerRef.current = setTimeout(() => {
+              saveHistory(html);
+            }, 500);
+          }}
+          onBlur={checkStyles}
+          onMouseUp={checkStyles}
+          onKeyUp={checkStyles}
+        />
+      )}
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+
+      {/* Footer Status Bar */}
+      <div className="bg-slate-50 border-t border-slate-100 px-4 py-1.5 flex justify-between items-center text-[10px] font-medium text-slate-400 select-none">
+        <div className="flex items-center gap-3">
+          <span>{isCodeView ? `${htmlCode.length} chars` : `${wordCount} words`}</span>
+          {label && <span className="uppercase tracking-widest font-bold text-indigo-400">{label}</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Ready"></span>
+          <span>{isCodeView ? 'HTML Code' : 'Rich Text'}</span>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+
+  return (
+    <>
+      {/* Fullscreen Modal */}
+      {expanded && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-full max-w-6xl h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-white/20">
+            {renderToolbar(true)}
+            {renderContentArea(expandedEditorRef, true)}
+          </div>
+        </div>
+      )}
+
+      {/* Inline Editor */}
+      <div className={`flex flex-col border border-slate-300 rounded-xl bg-white shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-400 transition-all overflow-hidden ${className}`}>
+        {renderToolbar(false)}
+        {renderContentArea(editorRef, false)}
+      </div>
+    </>
+  );
 });
 

@@ -36,6 +36,18 @@ const App: React.FC = () => {
   const [view, setView] = useState<'landing' | 'creator' | 'teacher' | 'student' | 'pdf' | 'tools' | 'paper-builder' | 'ppt-generator'>(defaultView);
   const [presentationSetId, setPresentationSetId] = useState<string | null>(initial.setId);
 
+  // Handle Browser Back/Forward buttons
+  React.useEffect(() => {
+    const handlePopState = () => {
+      const state = getInitialState();
+      setView(state.view);
+      setPresentationSetId(state.setId);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // Update URL function (optional, to keep URL in sync)
   const updateUrl = (newView: string, id?: string | null) => {
     const url = new URL(window.location.href);

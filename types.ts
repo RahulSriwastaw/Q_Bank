@@ -185,6 +185,7 @@ export interface GenerateParams {
   context?: string;
   inputMode?: 'text' | 'image' | 'pdf' | 'url';
   files?: File[];
+  outputFormat?: 'html' | 'plain'; // HTML formatted or plain text output
 }
 
 // --- Bulk Upload System Types ---
