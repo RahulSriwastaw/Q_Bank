@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { BoardCanvas } from './BoardCanvas';
 import { BoardToolbar } from './BoardToolbar';
 import { useBoardStore } from './store';
 import { useDraggable } from './useDraggable';
 import { useResizable } from './useResizable';
 import { Question } from '../../types';
-import { Clock, Presentation, Maximize, CheckCircle, ArrowLeft, CloudUpload, Loader2, Eye, EyeOff, BookOpen, X, Hourglass, Settings, Play, Pause, RotateCcw } from 'lucide-react';
+import { Clock, Presentation, Maximize, CheckCircle, ArrowLeft, CloudUpload, Loader2, Eye, EyeOff, BookOpen, X, Hourglass, Settings, Play, Pause, RotateCcw, ChevronUp, ChevronDown } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { storageService } from '../../services/storageService';
@@ -23,7 +23,7 @@ interface SmartBoardProps {
 
 type Slide =
     | { type: 'question'; data: Question }
-    | { type: 'explanation'; data: Question };
+    | { type: 'solution'; data: Question };
 
 export const SmartBoard: React.FC<SmartBoardProps> = ({
     questions = [],
@@ -51,6 +51,7 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
 
     const [manualTime, setManualTime] = useState('');
     const [showClassNotes, setShowClassNotes] = useState(false);
+    const [isHeaderVisible, setIsHeaderVisible] = useState(true);
     // showCalculator replaced by store.activePanel === 'calculator'
 
     const {
@@ -98,11 +99,11 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
     // Helper to get underlying question data safely
     const currentQuestion = currentSlide?.data;
 
-    // Check if next slide is already an explanation for the current question
-    const hasNextSlideExplanation = React.useMemo(() => {
+    // Check if next slide is already a solution for the current question
+    const hasNextSlideSolution = useMemo(() => {
         if (!currentQuestion) return false;
         const nextSlide = slides[currentIdx + 1];
-        return nextSlide && nextSlide.type === 'explanation' && nextSlide.data.id === currentQuestion.id;
+        return nextSlide && nextSlide.type === 'solution' && nextSlide.data.id === currentQuestion.id;
     }, [slides, currentIdx, currentQuestion]);
 
     useEffect(() => {
@@ -148,19 +149,19 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
         loadSlideStrokes(initialIdx);
     }, []);
 
-    // Toggle Explanation Slide Logic
-    const toggleExplanationSlide = () => {
+    // Toggle Solution Slide Logic
+    const toggleSolutionSlide = () => {
         if (!currentQuestion) return;
 
-        if (hasNextSlideExplanation) {
-            // Remove the explanation slide
+        if (hasNextSlideSolution) {
+            // Remove the solution slide
             const newSlides = [...slides];
             newSlides.splice(currentIdx + 1, 1);
             setSlides(newSlides);
         } else {
-            // Add explanation slide
+            // Add solution slide
             const newSlides = [...slides];
-            newSlides.splice(currentIdx + 1, 0, { type: 'explanation', data: currentQuestion });
+            newSlides.splice(currentIdx + 1, 0, { type: 'solution', data: currentQuestion });
             setSlides(newSlides);
         }
     };
@@ -270,12 +271,24 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
             />
 
             {/* Top Bar */}
-            <header className="smartboard-ui absolute top-0 left-0 right-0 h-14 flex items-center justify-between px-6 z-50 bg-[#0A0C10]/90 backdrop-blur-md border-b border-white/5">
+            <header className={`smartboard-ui absolute top-0 left-0 right-0 h-14 flex items-center justify-between px-6 z-50 bg-[#0A0C10]/90 backdrop-blur-md border-b border-white/5 transition-transform duration-300 ease-in-out ${isHeaderVisible ? 'translate-y-0' : '-translate-y-full'}`}>
+                {/* Fold Toggle Tab */}
+                <div
+                    onClick={() => setIsHeaderVisible(!isHeaderVisible)}
+                    className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-16 h-5 bg-[#0A0C10]/90 backdrop-blur-md rounded-b-lg border-b border-x border-white/10 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors z-50 shadow-sm group"
+                    title={isHeaderVisible ? "Fold Menu (Hide)" : "Unfold Menu (Show)"}
+                >
+                    {isHeaderVisible ? (
+                        <ChevronUp size={14} className="text-slate-500 group-hover:text-white" />
+                    ) : (
+                        <ChevronDown size={14} className="text-slate-500 group-hover:text-white" />
+                    )}
+                </div>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 rounded-full border border-blue-500/20">
                         <Presentation size={14} className="text-blue-400" />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100">
-                            {setName} {hasNextSlideExplanation ? '(+Expl)' : ''}
+                            {setName} {hasNextSlideSolution ? '(+Sol)' : ''}
                         </span>
                     </div>
                     {/* ... (rest of header same) ... */}
@@ -373,9 +386,9 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
                     If 'question', render standard card.
                 */}
 
-                {currentSlide?.type === 'explanation' ? (
+                {currentSlide?.type === 'solution' ? (
                     <div
-                        className={`absolute flex flex-col pointer-events-auto shadow-2xl rounded-2xl overflow-hidden ${isExplResizing ? 'cursor-grabbing' : ''}`}
+                        className={`absolute flex flex-col pointer-events-auto shadow-2xl rounded-2xl overflow-hidden group/expl ${isExplResizing ? 'cursor-grabbing' : ''}`}
                         style={{
                             transform: `translate(${explPos.x}px, ${explPos.y}px)`,
                             width: explSize.width,
@@ -401,20 +414,49 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
                             }}
                         />
 
-                        {/* Resize Handles (Keep z-index high) */}
-                        {/* BR Corner */}
-                        <div className="resize-handle absolute -right-1 -bottom-1 w-6 h-6 bg-indigo-500 rounded-full cursor-se-resize z-50 hover:scale-125 transition-transform border-2 border-white shadow-lg flex items-center justify-center"
+                        {/* Resize Handles - Subtle 8 directions */}
+                        {/* Corner Handles - Subtle with hover effect */}
+                        {/* Top-Left */}
+                        <div className="resize-handle absolute -left-1 -top-1 w-4 h-4 bg-indigo-500/30 hover:bg-indigo-500 rounded-full cursor-nw-resize z-50 hover:scale-150 transition-all border border-white/20 hover:border-white flex items-center justify-center opacity-0 hover:opacity-100 group-hover/expl:opacity-60"
+                            onPointerDown={(e) => initExplResize(e, 'nw')}
+                        >
+                            <div className="w-1 h-1 bg-white rounded-full opacity-70" />
+                        </div>
+                        {/* Top-Right */}
+                        <div className="resize-handle absolute -right-1 -top-1 w-4 h-4 bg-indigo-500/30 hover:bg-indigo-500 rounded-full cursor-ne-resize z-50 hover:scale-150 transition-all border border-white/20 hover:border-white flex items-center justify-center opacity-0 hover:opacity-100 group-hover/expl:opacity-60"
+                            onPointerDown={(e) => initExplResize(e, 'ne')}
+                        >
+                            <div className="w-1 h-1 bg-white rounded-full opacity-70" />
+                        </div>
+                        {/* Bottom-Left */}
+                        <div className="resize-handle absolute -left-1 -bottom-1 w-4 h-4 bg-indigo-500/30 hover:bg-indigo-500 rounded-full cursor-sw-resize z-50 hover:scale-150 transition-all border border-white/20 hover:border-white flex items-center justify-center opacity-0 hover:opacity-100 group-hover/expl:opacity-60"
+                            onPointerDown={(e) => initExplResize(e, 'sw')}
+                        >
+                            <div className="w-1 h-1 bg-white rounded-full opacity-70" />
+                        </div>
+                        {/* Bottom-Right */}
+                        <div className="resize-handle absolute -right-1 -bottom-1 w-4 h-4 bg-indigo-500/30 hover:bg-indigo-500 rounded-full cursor-se-resize z-50 hover:scale-150 transition-all border border-white/20 hover:border-white flex items-center justify-center opacity-0 hover:opacity-100 group-hover/expl:opacity-60"
                             onPointerDown={(e) => initExplResize(e, 'se')}
                         >
-                            <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                            <div className="w-1 h-1 bg-white rounded-full opacity-70" />
                         </div>
-                        {/* Right Edge */}
-                        <div className="resize-handle absolute -right-1 top-1/2 -translate-y-1/2 w-1.5 h-12 bg-white/10 hover:bg-indigo-500 rounded-full cursor-e-resize z-50 transition-colors"
-                            onPointerDown={(e) => initExplResize(e, 'e')}
+
+                        {/* Edge Handles - Very subtle */}
+                        {/* Top Edge */}
+                        <div className="resize-handle absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/10 hover:bg-indigo-500/80 rounded-full cursor-n-resize z-50 transition-all opacity-0 hover:opacity-100 group-hover/expl:opacity-40"
+                            onPointerDown={(e) => initExplResize(e, 'n')}
                         />
                         {/* Bottom Edge */}
-                        <div className="resize-handle absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-white/10 hover:bg-indigo-500 rounded-full cursor-s-resize z-50 transition-colors"
+                        <div className="resize-handle absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/10 hover:bg-indigo-500/80 rounded-full cursor-s-resize z-50 transition-all opacity-0 hover:opacity-100 group-hover/expl:opacity-40"
                             onPointerDown={(e) => initExplResize(e, 's')}
+                        />
+                        {/* Left Edge */}
+                        <div className="resize-handle absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-white/10 hover:bg-indigo-500/80 rounded-full cursor-w-resize z-50 transition-all opacity-0 hover:opacity-100 group-hover/expl:opacity-40"
+                            onPointerDown={(e) => initExplResize(e, 'w')}
+                        />
+                        {/* Right Edge */}
+                        <div className="resize-handle absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-white/10 hover:bg-indigo-500/80 rounded-full cursor-e-resize z-50 transition-all opacity-0 hover:opacity-100 group-hover/expl:opacity-40"
+                            onPointerDown={(e) => initExplResize(e, 'e')}
                         />
 
 
@@ -431,7 +473,7 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
                                     <BookOpen size={16} />
                                 </div>
                                 <div className="pointer-events-none">
-                                    <h2 className="text-sm font-black uppercase tracking-widest text-white">Explanation</h2>
+                                    <h2 className="text-sm font-black uppercase tracking-widest text-white">Solution</h2>
                                 </div>
                             </div>
                             <div className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500 text-white shadow-sm opacity-80">
@@ -482,7 +524,7 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
                     </div>
                 ) : currentQuestion ? (
                     <div
-                        className={`select-none transition-all duration-75 relative pointer-events-auto ${isDragging ? 'cursor-grabbing scale-[1.005]' : isCursor ? 'cursor-move' : ''}`}
+                        className={`select-none transition-all duration-75 relative pointer-events-auto group/card ${isDragging ? 'cursor-grabbing scale-[1.005]' : isCursor ? 'cursor-move' : ''}`}
                         style={{
                             transform: `translate(${position.x}px, ${position.y}px)`,
                             width: size.width,
@@ -497,16 +539,50 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
                     >
                         {/* Question Card Content (Standard) */}
 
-                        {/* Resize Handles (Only visible in Cursor mode) */}
+                        {/* Resize Handles (Only visible in Cursor mode) - Subtle 8 directions */}
                         {isCursor && (
                             <>
-                                <div className="resize-handle absolute -right-1 -bottom-1 w-6 h-6 bg-blue-500 rounded-full cursor-se-resize z-50 hover:scale-125 transition-transform border-2 border-white shadow-lg flex items-center justify-center"
+                                {/* Corner Handles - Subtle with hover effect */}
+                                {/* Top-Left */}
+                                <div className="resize-handle absolute -left-1 -top-1 w-4 h-4 bg-blue-500/30 hover:bg-blue-500 rounded-full cursor-nw-resize z-50 hover:scale-150 transition-all border border-white/20 hover:border-white flex items-center justify-center opacity-0 hover:opacity-100 group-hover/card:opacity-60"
+                                    onPointerDown={(e) => initResize(e, 'nw')}
+                                >
+                                    <div className="w-1 h-1 bg-white rounded-full opacity-70" />
+                                </div>
+                                {/* Top-Right */}
+                                <div className="resize-handle absolute -right-1 -top-1 w-4 h-4 bg-blue-500/30 hover:bg-blue-500 rounded-full cursor-ne-resize z-50 hover:scale-150 transition-all border border-white/20 hover:border-white flex items-center justify-center opacity-0 hover:opacity-100 group-hover/card:opacity-60"
+                                    onPointerDown={(e) => initResize(e, 'ne')}
+                                >
+                                    <div className="w-1 h-1 bg-white rounded-full opacity-70" />
+                                </div>
+                                {/* Bottom-Left */}
+                                <div className="resize-handle absolute -left-1 -bottom-1 w-4 h-4 bg-blue-500/30 hover:bg-blue-500 rounded-full cursor-sw-resize z-50 hover:scale-150 transition-all border border-white/20 hover:border-white flex items-center justify-center opacity-0 hover:opacity-100 group-hover/card:opacity-60"
+                                    onPointerDown={(e) => initResize(e, 'sw')}
+                                >
+                                    <div className="w-1 h-1 bg-white rounded-full opacity-70" />
+                                </div>
+                                {/* Bottom-Right */}
+                                <div className="resize-handle absolute -right-1 -bottom-1 w-4 h-4 bg-blue-500/30 hover:bg-blue-500 rounded-full cursor-se-resize z-50 hover:scale-150 transition-all border border-white/20 hover:border-white flex items-center justify-center opacity-0 hover:opacity-100 group-hover/card:opacity-60"
                                     onPointerDown={(e) => initResize(e, 'se')}
                                 >
-                                    <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                                    <div className="w-1 h-1 bg-white rounded-full opacity-70" />
                                 </div>
 
-                                <div className="resize-handle absolute -right-1 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-white/20 hover:bg-blue-500 rounded-full cursor-e-resize z-50 transition-colors"
+                                {/* Edge Handles - Very subtle */}
+                                {/* Top Edge */}
+                                <div className="resize-handle absolute -top-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/10 hover:bg-blue-500/80 rounded-full cursor-n-resize z-50 transition-all opacity-0 hover:opacity-100 group-hover/card:opacity-40"
+                                    onPointerDown={(e) => initResize(e, 'n')}
+                                />
+                                {/* Bottom Edge */}
+                                <div className="resize-handle absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/10 hover:bg-blue-500/80 rounded-full cursor-s-resize z-50 transition-all opacity-0 hover:opacity-100 group-hover/card:opacity-40"
+                                    onPointerDown={(e) => initResize(e, 's')}
+                                />
+                                {/* Left Edge */}
+                                <div className="resize-handle absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-white/10 hover:bg-blue-500/80 rounded-full cursor-w-resize z-50 transition-all opacity-0 hover:opacity-100 group-hover/card:opacity-40"
+                                    onPointerDown={(e) => initResize(e, 'w')}
+                                />
+                                {/* Right Edge */}
+                                <div className="resize-handle absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-8 bg-white/10 hover:bg-blue-500/80 rounded-full cursor-e-resize z-50 transition-all opacity-0 hover:opacity-100 group-hover/card:opacity-40"
                                     onPointerDown={(e) => initResize(e, 'e')}
                                 />
                             </>
@@ -611,6 +687,74 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
                                 })}
                             </div>
 
+                            {/* View Solution Button - Appears only when answer is shown */}
+                            {showAns && (
+                                <div className="mt-3 pt-3 border-t border-white/10 space-y-2 shrink-0">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+
+                                            if (hasNextSlideSolution) {
+                                                // If solution slide exists, navigate to it
+                                                if (currentIdx < slides.length - 1) {
+                                                    setCurrentIdx(currentIdx + 1);
+                                                }
+                                            } else {
+                                                // Otherwise, toggle inline solution display
+                                                setShowSolution(!showSolution);
+                                            }
+                                        }}
+                                        className={`w-full py-2.5 px-4 rounded-lg font-bold text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 group ${(hasNextSlideSolution || showSolution)
+                                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
+                                            : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/40'
+                                            }`}
+                                    >
+                                        <BookOpen size={18} className={(hasNextSlideSolution || showSolution) ? '' : 'group-hover:scale-110 transition-transform'} />
+                                        {hasNextSlideSolution ? 'View Solution →' : (showSolution ? 'Hide Solution' : 'View Solution')}
+                                    </button>
+
+                                    {/* Inline Solution Content - Only shown when explanation slide is NOT active */}
+                                    {!hasNextSlideSolution && showSolution && currentQuestion && (
+                                        <div
+                                            className="animate-in slide-in-from-top-2 fade-in duration-300 rounded-xl overflow-hidden border border-emerald-500/20 shadow-lg"
+                                            style={{
+                                                backgroundColor: `rgba(16, 185, 129, 0.05)`,
+                                            }}
+                                        >
+                                            <div className="p-4 space-y-3 max-h-[40vh] overflow-y-auto custom-scrollbar">
+                                                {(langMode === 'both' || langMode === 'eng') && currentQuestion.solution_eng && (
+                                                    <div
+                                                        className="prose prose-invert prose-sm max-w-none"
+                                                        style={{
+                                                            fontSize: `${questionStyle.fontSize * 0.85}px`,
+                                                            lineHeight: questionStyle.lineHeight,
+                                                            color: 'rgba(255, 255, 255, 0.9)'
+                                                        }}
+                                                        dangerouslySetInnerHTML={{ __html: currentQuestion.solution_eng }}
+                                                    />
+                                                )}
+
+                                                {(langMode === 'both' || langMode === 'hin') && currentQuestion.solution_hin && (
+                                                    <>
+                                                        {(langMode === 'both' && currentQuestion.solution_eng) && <div className="h-px bg-white/10 my-3" />}
+                                                        <div
+                                                            className="prose prose-invert prose-sm max-w-none font-heading"
+                                                            style={{
+                                                                fontSize: `${questionStyle.fontSize * 0.85}px`,
+                                                                lineHeight: questionStyle.lineHeight,
+                                                                color: 'rgba(255, 255, 255, 0.85)'
+                                                            }}
+                                                            dangerouslySetInnerHTML={{ __html: currentQuestion.solution_hin }}
+                                                        />
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+
                             {/* Note: Explanation removed from here to make it floatable */}
 
                         </div>
@@ -632,8 +776,8 @@ export const SmartBoard: React.FC<SmartBoardProps> = ({
                     onPrev={handlePrev}
                     onNext={handleNext}
                     dragHandlers={toolbarDragHandlers}
-                    onToggleExplanation={toggleExplanationSlide}
-                    hasExplanationSlide={hasNextSlideExplanation}
+                    onToggleExplanation={toggleSolutionSlide}
+                    hasExplanationSlide={hasNextSlideSolution}
                 />
             </div >
 

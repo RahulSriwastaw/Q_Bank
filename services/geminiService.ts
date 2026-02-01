@@ -73,7 +73,7 @@ export const CURRENT_AFFAIRS_CATEGORIES = [
 
 export const geminiService = {
   generateQuestions: async (params: GenerateParams, modelId?: string): Promise<Question[]> => {
-    const { subject, topic, difficulty, count, type, date, language, context, inputMode, files } = params;
+    const { subject, topic, difficulty, count, type, date, language, context, inputMode, files, outputFormat = 'html' } = params;
 
     const isCurrentAffairs = subject === 'Current Affairs';
 
@@ -121,16 +121,98 @@ export const geminiService = {
       - Ensure high accuracy in facts, appointments, and data.
       - Every question must be relevant for a candidate appearing in exams in 2025.
 
-      IMPORTANT: SOLUTION QUALITY REQUIREMENTS (CRITICAL):
-      For every question, the "solution_eng" and "solution_hin" must be HIGHLY COMPREHENSIVE and cover the topic exhaustively.
-      Structure the solution to include:
-      1. **Detailed Explanation**: Cover the 'Why' and 'How', not just the 'What'. Explain the core answer in depth.
-      2. **Context & Background**: Provide the background story or context necessary to understand the event.
-      3. **Key Details**: Explicitly mention relevant Dates, Names, Figures, Locations, and Constitutional Articles/Acts if applicable.
-      4. **Related Information**: Briefly cover related sub-topics or connected events to give a holistic view.
-      5. **Key Takeaways**: Bullet points of facts to remember.
+      ${outputFormat === 'html' ? `
+      IMPORTANT: HTML FORMATTING REQUIREMENTS (MANDATORY):
+      ALL content fields (questions, options, solutions) MUST be in rich HTML format with inline CSS styling.
+      Use professional, colorful, and visually appealing formatting with DARK TEXT on LIGHT backgrounds for maximum visibility:
+      
+      1. **Questions**: Use light gradient backgrounds with DARK text for visibility
+         Example: <div style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); padding: 15px; border-radius: 8px; color: #1a1a1a; font-weight: 600; margin-bottom: 12px; border: 2px solid #667eea;">Question text here</div>
+      
+      2. **Options**: Use light backgrounds with dark text and colored left borders
+         Example: <div style="background: #ffffff; border-left: 4px solid #3498db; padding: 12px; margin: 8px 0; border-radius: 6px; font-size: 15px; color: #2c3e50; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><strong style="color: #3498db;">A.</strong> Option text here</div>
+      
+      3. **Solutions**: Structure with sections, highlights, and colored emphasis - ALWAYS use dark text
+         - Use <h3> tags with light gradient backgrounds and DARK text for section headers
+         - Use <span style="background: #fff3cd; color: #856404; font-weight: 600; padding: 2px 6px; border-radius: 3px;"> for key terms (yellow highlight)
+         - Use <div style="background: #d4edda; border-left: 5px solid #28a745; padding: 12px; margin: 10px 0; color: #155724;"> for important notes (green)
+         - Use <ul> or <ol> with styled <li style="padding: 8px; background: #e7f3ff; margin: 5px 0; border-radius: 5px; color: #004085;"> for key takeaways
+      ` : `
+      IMPORTANT: PLAIN TEXT FORMATTING (MANDATORY):
+      ALL content fields (questions, options, solutions) MUST be in PLAIN TEXT format only.
+      - DO NOT use any HTML tags whatsoever (<div>, <span>, <h3>, <strong>, <p>, etc.)
+      - Use simple text with line breaks for structure
+      - Use ** for bold emphasis (Markdown style)
+      - Use * or - for bullet points
+      - Use numbered lists (1., 2., 3.) for ordered lists
+      - Keep formatting minimal and readable in plain text
+      
+      Example Question (Plain Text):
+      "What is the capital of India?"
+      
+      Example Option (Plain Text):
+      "A. New Delhi"
+      
+      Example Solution (Plain Text):
+      "**Correct Answer:** Option A
+      
+      **Explanation:**
+      New Delhi is the capital of India. It was declared the capital in 1911, replacing Calcutta.
+      
+      **Key Points:**
+      * New Delhi is located in northern India
+      * It serves as the seat of the Government of India
+      * The city was designed by British architects Edwin Lutyens and Herbert Baker
+      
+      **Important:** New Delhi should not be confused with Delhi, which is the larger metropolitan area."
+      `}
 
-      Objective: A student reading this solution should grasp the ENTIRE topic and be able to answer related questions without needing further reference.
+      IMPORTANT: SOLUTION STRUCTURE (MANDATORY):
+      Every solution must follow this EXACT structure:
+      
+      ${outputFormat === 'html' ? `
+      **HTML FORMAT STRUCTURE:**
+      1. **Correct Answer Statement** - Simple one-line answer at the top
+      2. **📰 In News Section** - Recent news/context with bullet points
+      3. **✓ Key Points Section** - Important facts and details with bullet points
+      
+      Example HTML Solution:
+      "<p style='color: #2c3e50; font-weight: 600; margin-bottom: 15px;'>सही उत्तर [Answer text]।</p>
+      <h3 style='color: #1976d2; background: #e3f2fd; padding: 10px; border-radius: 6px; margin: 15px 0; display: flex; align-items: center; gap: 8px;'><span style='font-size: 18px;'>📰</span> In News</h3>
+      <ul style='list-style: none; padding-left: 0; margin: 10px 0;'>
+        <li style='padding: 8px; background: #f5f5f5; margin: 5px 0; border-radius: 5px; color: #2c3e50; border-left: 3px solid #1976d2;'>• News point 1 with relevant details</li>
+        <li style='padding: 8px; background: #f5f5f5; margin: 5px 0; border-radius: 5px; color: #2c3e50; border-left: 3px solid #1976d2;'>• News point 2</li>
+      </ul>
+      <h3 style='color: #28a745; background: #d4edda; padding: 10px; border-radius: 6px; margin: 15px 0; display: flex; align-items: center; gap: 8px;'><span style='font-size: 18px;'>✓</span> Key Points</h3>
+      <ul style='list-style: none; padding-left: 0; margin: 10px 0;'>
+        <li style='padding: 8px; background: #f5f5f5; margin: 5px 0; border-radius: 5px; color: #2c3e50; border-left: 3px solid #28a745;'>• Key fact 1 with dates, names, or figures</li>
+        <li style='padding: 8px; background: #f5f5f5; margin: 5px 0; border-radius: 5px; color: #2c3e50; border-left: 3px solid #28a745;'>• Key fact 2</li>
+      </ul>"
+      ` : `
+      **PLAIN TEXT FORMAT STRUCTURE:**
+      1. **Correct Answer Statement** - Simple one-line answer at the top
+      2. **📰 In News Section** - Recent news/context with bullet points
+      3. **✓ Key Points Section** - Important facts and details with bullet points
+      
+      Example Plain Text Solution:
+      "सही उत्तर [Answer text]।
+      
+      📰 In News
+      • News point 1 with relevant details
+      • News point 2 with context
+      
+      ✓ Key Points
+      • Key fact 1 with dates, names, or figures
+      • Key fact 2 with important information
+      • Key fact 3"
+      `}
+
+      Content Guidelines:
+      - **In News**: Include 2-3 recent developments, appointments, or events related to this topic
+      - **Key Points**: Include 3-5 essential facts with specific details (dates, names, numbers, locations)
+      - Keep language clear and concise
+      - Include both English and Hindi content appropriately based on language parameter
+
       
       IMPORTANT: Fill ALL metadata fields accurately:
       - exam: Target exam like "UPSC", "SSC CGL", "RRB NTPC", "IBPS PO", "BPSC", etc.
@@ -146,26 +228,52 @@ export const geminiService = {
           - Low: General blogs, social media, unverified sites.
       
       Response Format (JSON):
-      {
-        "question_eng": "...", "question_hin": "...",
-        "option1_eng": "...", "option1_hin": "...",
+      ${outputFormat === 'html' ? `{
+        "question_eng": "<div style='background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); padding: 15px; border-radius: 8px; color: #1a1a1a; font-weight: 600; border: 2px solid #667eea;'>Question text in HTML</div>",
+        "question_hin": "<div style='background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); padding: 15px; border-radius: 8px; color: #1a1a1a; font-weight: 600; border: 2px solid #667eea;'>प्रश्न पाठ HTML में</div>",
+        "option1_eng": "<div style='background: #ffffff; border-left: 4px solid #3498db; padding: 12px; margin: 8px 0; border-radius: 6px; color: #2c3e50; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'><strong style='color: #3498db;'>A.</strong> Option text</div>",
+        "option1_hin": "<div style='background: #ffffff; border-left: 4px solid #3498db; padding: 12px; margin: 8px 0; border-radius: 6px; color: #2c3e50; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'><strong style='color: #3498db;'>क.</strong> विकल्प पाठ</div>",
         "option2_eng": "...", "option2_hin": "...",
         "option3_eng": "...", "option3_hin": "...",
         "option4_eng": "...", "option4_hin": "...",
-        "option5_eng": "None of the above / More than one of the above", "option5_hin": "उपर्युक्त में से कोई नहीं / उपर्युक्त में से एक से अधिक",
-        "answer": "1", // Valid values: 1, 2, 3, 4, 5
-        "solution_eng": "**Correct Answer:** [Option]\\n\\n**Detailed Explanation:** ...\\n\\n**Context:** ...\\n\\n**Key Takeaways:** ...", 
-        "solution_hin": "**सही उत्तर:** [विकल्प]\\n\\n**विस्तृत व्याख्या:** ...\\n\\n**संदर्भ:** ...\\n\\n**मुख्य बिंदु:** ...",
+        "option5_eng": "<div style='background: #ffffff; border:1px solid #95a5a6; padding: 12px; margin: 8px 0; border-radius: 6px; color: #2c3e50;'><strong style='color: #7f8c8d;'>E.</strong> None of the above / More than one of the above</div>",
+        "option5_hin": "<div style='background: #ffffff; border:1px solid #95a5a6; padding: 12px; margin: 8px 0; border-radius: 6px; color: #2c3e50;'><strong style='color: #7f8c8d;'>ङ.</strong> उपर्युक्त में से कोई नहीं / उपर्युक्त में से एक से अधिक</div>",
+        "answer": "1",
+        "solution_eng": "<p style='color: #2c3e50; font-weight: 600; margin-bottom: 15px;'>The correct answer is Option A - [Answer details].</p><h3 style='color: #1976d2; background: #e3f2fd; padding: 10px; border-radius: 6px; margin: 15px 0; display: flex; align-items: center; gap: 8px;'><span style='font-size: 18px;'>📰</span> In News</h3><ul style='list-style: none; padding-left: 0; margin: 10px 0;'><li style='padding: 8px; background: #f5f5f5; margin: 5px 0; border-radius: 5px; color: #2c3e50; border-left: 3px solid #1976d2;'>• Recent development or appointment related to this topic with specific date</li><li style='padding: 8px; background: #f5f5f5; margin: 5px 0; border-radius: 5px; color: #2c3e50; border-left: 3px solid #1976d2;'>• Important event or announcement</li></ul><h3 style='color: #28a745; background: #d4edda; padding: 10px; border-radius: 6px; margin: 15px 0; display: flex; align-items: center; gap: 8px;'><span style='font-size: 18px;'>✓</span> Key Points</h3><ul style='list-style: none; padding-left: 0; margin: 10px 0;'><li style='padding: 8px; background: #f5f5f5; margin: 5px 0; border-radius: 5px; color: #2c3e50; border-left: 3px solid #28a745;'>• Essential fact with specific details (dates, names, figures)</li><li style='padding: 8px; background: #f5f5f5; margin: 5px 0; border-radius: 5px; color: #2c3e50; border-left: 3px solid #28a745;'>• Important information related to the topic</li><li style='padding: 8px; background: #f5f5f5; margin: 5px 0; border-radius: 5px; color: #2c3e50; border-left: 3px solid #28a745;'>• Additional key fact or context</li></ul>",
+        "solution_hin": "<p style='color: #2c3e50; font-weight: 600; margin-bottom: 15px;'>सही उत्तर विकल्प क - [उत्तर विवरण]।</p><h3 style='color: #1976d2; background: #e3f2fd; padding: 10px; border-radius: 6px; margin: 15px 0; display: flex; align-items: center; gap: 8px;'><span style='font-size: 18px;'>📰</span> समाचार में</h3><ul style='list-style: none; padding-left: 0; margin: 10px 0;'><li style='padding: 8px; background: #f5f5f5; margin: 5px 0; border-radius: 5px; color: #2c3e50; border-left: 3px solid #1976d2;'>• हालिया विकास या नियुक्ति</li></ul><h3 style='color: #28a745; background: #d4edda; padding: 10px; border-radius: 6px; margin: 15px 0; display: flex; align-items: center; gap: 8px;'><span style='font-size: 18px;'>✓</span> मुख्य बिंदु</h3><ul style='list-style: none; padding-left: 0; margin: 10px 0;'><li style='padding: 8px; background: #f5f5f5; margin: 5px 0; border-radius: 5px; color: #2c3e50; border-left: 3px solid #28a745;'>• महत्वपूर्ण तथ्य</li></ul>",
         "exam": "SSC CGL",
         "year": "${currentYear}",
         "section": "General Awareness",
-        "section": "General Awareness",
         "chapter": "Indian Economy",
         "sources": [
-            { "title": "The Hindu", "uri": "https://www.thehindu.com/...", "credibility": "High" },
-            { "title": "PIB", "uri": "https://pib.gov.in/...", "credibility": "High" }
+            { "title": "The Hindu", "uri": "https://www.thehindu.com/", "credibility": "High" },
+            { "title": "PIB", "uri": "https://pib.gov.in/", "credibility": "High" }
         ]
-      }
+      }` : `{
+        "question_eng": "What is the capital of India?",
+        "question_hin": "भारत की राजधानी क्या है?",
+        "option1_eng": "A. New Delhi",
+        "option1_hin": "क. नई दिल्ली",
+        "option2_eng": "B. Mumbai",
+        "option2_hin": "ख. मुंबई",
+        "option3_eng": "C. Kolkata",
+        "option3_hin": "ग. कोलकाता",
+        "option4_eng": "D. Chennai",
+        "option4_hin": "घ. चेन्नई",
+        "option5_eng": "E. None of the above",
+        "option5_hin": "ङ. उपर्युक्त में से कोई नहीं",
+        "answer": "1",
+        "solution_eng": "The correct answer is Option A - New Delhi.\\n\\n📰 In News\\n• Delhi is hosting the G20 Summit in 2023, showcasing India's capital on the global stage\\n• New Metro corridors inaugurated in New Delhi, improving connectivity across NCR\\n\\n✓ Key Points\\n• New Delhi became the capital of India in 1911, replacing Calcutta (now Kolkata)\\n• The decision was announced during the Delhi Durbar by King George V\\n• Designed by British architects Edwin Lutyens and Herbert Baker\\n• Officially inaugurated on February 13, 1931\\n• New Delhi is the seat of all three branches of the Government of India",
+        "solution_hin": "सही उत्तर विकल्प क - नई दिल्ली।\\n\\n📰 समाचार में\\n• दिल्ली में 2023 में G20 शिखर सम्मेलन आयोजित हो रहा है\\n• नई दिल्ली में नई मेट्रो लाइनों का उद्घाटन किया गया\\n\\n✓ मुख्य बिंदु\\n• नई दिल्ली 1911 में भारत की राजधानी बनी\\n• राजा जॉर्ज पंचम ने दिल्ली दरबार में घोषणा की\\n• एडविन लुटियंस और हर्बर्ट बेकर द्वारा डिजाइन किया गया\\n• 13 फरवरी 1931 को आधिकारिक रूप से उद्घाटन हुआ",
+        "exam": "SSC CGL",
+        "year": "${currentYear}",
+        "section": "General Awareness",
+        "chapter": "Indian Polity",
+        "sources": [
+            { "title": "NCERT", "uri": "https://ncert.nic.in/", "credibility": "High" },
+            { "title": "India.gov.in", "uri": "https://www.india.gov.in/", "credibility": "High" }
+        ]
+      }`}
     `;
 
     try {
